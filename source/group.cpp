@@ -1,0 +1,45 @@
+#include "group.h"
+
+namespace rt
+{
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Group
+////////////////////////////////////////////////////////////////////////////////////////////////////
+Intersections Group::localIntersect(Ray localRay)
+{
+    Intersections xs{};
+    // aggregate the intersections of all the child shapes
+    for (auto s : children) xs = xs + s->intersect(localRay);
+    return xs;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+Tuple Group::localNormalAt(Tuple localPoint, Intersection iHit)
+{
+    (void) localPoint;
+    (void) iHit;
+    return {};
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+void Group::setMaterial(Material newMaterial)
+{
+    for (auto s : children) s->setMaterial(newMaterial);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+bool Group::includes(Shape* s) const
+{
+    bool includesShape{ false };
+    for (const auto c: children)
+    {
+        if (c->includes(s))
+        {
+            includesShape = true;
+            break;
+        }
+    }
+    return includesShape;
+}
+
+}
