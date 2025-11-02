@@ -1,41 +1,60 @@
-cmake_minimum_required(VERSION 3.27)
-project(raytracer VERSION 0.5.0 DESCRIPTION "Raytracer Library" LANGUAGES CXX)
+#
+#   RAYTRACER
+#   a 3d raytracing rendering library
+#
+cmake_minimum_required(VERSION 4.0)
+project(raytracer
+        VERSION 0.5.0
+        DESCRIPTION "Raytracer"
+        HOMEPAGE_URL "https://stacygaudreau.com"
+        LANGUAGES CXX
+)
 
-# compiler and build settings
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS "-std=c++2a -Wall -Wextra -Wpedantic")
-set(CMAKE_VERBOSE_MAKEFILE on)
-# release build if no build type is specified
-if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
+#
+#   Options
+#
+option(BUILD_DEMO "Build demo application" ON)
+option(BUILD_TESTING "Build unit test suite" ON)
+option(BUILD_BENCHMARKS "Build benchmark suite" ON)
+option(INSTALL_LIB "System library install" ON)
 
-add_subdirectory(source)  # raytracer library source
+#
+#   Compiler/C++ config
+#
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# test target with Gtest
-file(GLOB TEST_SOURCES "tests/*.cpp")
-# FetchContent to load and build googletest
+#
+#   Fetch common dependencies
+#
 include(FetchContent)
 FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG main
+        spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG v1.16.0
 )
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+FetchContent_MakeAvailable(spdlog)
 
-# demo executable target
-add_executable(demo demo/main.cpp)
-target_link_libraries(demo PUBLIC ${PROJECT_NAME})
+#
+#   Subdirectories
+#
+add_subdirectory(src)
+if (BUILD_DEMO)
+    add_subdirectory(demo)
+endif()
+if (BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+if (BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif()
 
-# declare and link tests target
-enable_testing()
-add_executable(
-        tests
-        ${TEST_SOURCES}
-)
-target_link_libraries(tests PRIVATE gtest_main PUBLIC ${PROJECT_NAME})
-include(GoogleTest)
-gtest_discover_tests(tests)
-
-# todo: library and header installation
+#
+#   Install library
+#
+if (INSTALL_LIB)
+    # todo!!
+endif()

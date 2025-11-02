@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/libraytracer.iml" filepath="$PROJECT_DIR$/.idea/libraytracer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/libprojectskeleton.iml" filepath="$PROJECT_DIR$/.idea/libprojectskeleton.iml" />
     </modules>
   </component>
 </project>
