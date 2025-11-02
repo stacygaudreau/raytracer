@@ -1,10 +1,10 @@
-#include "../cmake-build-release/_deps/spdlog-src/include/spdlog/sinks/rotating_file_sink.h"
 #include "gtest/gtest.h"
 
 #include "spdlog/spdlog.h"
 #include "spdlog/async.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
+#include "spdlog/sinks/rotating_file_sink.h"
 
 
 TEST(SpdlogAsync, FileSink) {

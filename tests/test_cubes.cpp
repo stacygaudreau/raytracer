@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
-#include "raytracer/cube.h"
-#include "raytracer/rays.h"
-#include "raytracer/intersection.h"
+#include "raytracer/shapes/cube.hpp"
+#include "raytracer/renderer/ray.hpp"
+#include "raytracer/renderer/intersection.hpp"
 
 using namespace rt;
 

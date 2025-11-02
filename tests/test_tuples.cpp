@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "raytracer/tuples.h"
+#include "raytracer/math/tuples.hpp"
 
 #include <numbers>
 

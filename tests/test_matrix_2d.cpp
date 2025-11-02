@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
-#include "raytracer/matrix_2d.h"
-#include "raytracer/colours.h"
+#include "raytracer/math/matrix_2d.hpp"
+#include "raytracer/renderer/colour.hpp"
 
 using namespace rt;
 

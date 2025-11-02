@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
-#include "raytracer/plane.h"
+#include "raytracer/utils/utils.hpp"
+#include "raytracer/shapes/plane.hpp"
 
 using namespace rt;
 

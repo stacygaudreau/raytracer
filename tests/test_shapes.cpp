@@ -1,8 +1,8 @@
-#include "raytracer/shapes.h"
-#include "raytracer/sphere.h"
-#include "raytracer/plane.h"
+#include "raytracer/shapes/shape.hpp"
+#include "raytracer/shapes/sphere.hpp"
+#include "raytracer/shapes/plane.hpp"
 #include "gtest/gtest.h"
-#include "raytracer/group.h"
+#include "raytracer/shapes/group.hpp"
 
 using namespace rt;
 
@@ -16,7 +16,7 @@ class ShapeBasics: public ::testing::Test
     class DerivedShape: public Shape
     {
       public:
-        DerivedShape(): Shape(){};
+        DerivedShape() = default;
 
         Tuple localNormalAt(Tuple localPoint, Intersection iHit) override
         {

@@ -1,10 +1,10 @@
 #include "gtest/gtest.h"
-#include "raytracer/colours.h"
-#include "raytracer/textures.h"
-#include "raytracer/materials.h"
-#include "raytracer/sphere.h"
-#include "raytracer/tuples.h"
-#include "raytracer/plane.h"
+#include "raytracer/renderer/colour.hpp"
+#include "raytracer/materials/textures.hpp"
+#include "raytracer/materials/material.hpp"
+#include "raytracer/shapes/sphere.hpp"
+#include "raytracer/math/tuples.hpp"
+#include "raytracer/shapes/plane.hpp"
 
 using namespace rt;
 

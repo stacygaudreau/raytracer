@@ -1,8 +1,8 @@
-#include "raytracer/materials.h"
-#include "raytracer/colours.h"
-#include "raytracer/lighting.h"
-#include "raytracer/utils.h"
-#include "raytracer/sphere.h"
+#include "raytracer/materials/material.hpp"
+#include "raytracer/renderer/colour.hpp"
+#include "raytracer/environment/lighting.hpp"
+#include "raytracer/utils/utils.hpp"
+#include "raytracer/shapes/sphere.hpp"
 #include "gtest/gtest.h"
 
 using namespace rt;

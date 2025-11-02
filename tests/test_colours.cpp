@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "raytracer/colours.h"
+#include "raytracer/renderer/colour.hpp"
 
 using namespace rt;
 

@@ -1,12 +1,12 @@
 #include <iostream>
 
-#include "raytracer/sphere.h"
-#include "raytracer/plane.h"
-#include "raytracer/world.h"
-#include "raytracer/camera.h"
-#include "raytracer/renderer.h"
-#include "raytracer/textures.h"
-#include "raytracer/materials.h"
+#include "raytracer/shapes/sphere.hpp"
+#include "raytracer/shapes/plane.hpp"
+#include "raytracer/environment/world.hpp"
+#include "raytracer/environment/camera.hpp"
+#include "raytracer/renderer/renderer.hpp"
+#include "raytracer/materials/textures.hpp"
+#include "raytracer/materials/material.hpp"
 
 using namespace rt;
 

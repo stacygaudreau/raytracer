@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
-#include "raytracer/triangle.h"
-#include "raytracer/world.h"
-#include "raytracer/rays.h"
+#include "raytracer/shapes/triangle.hpp"
+#include "raytracer/environment/world.hpp"
+#include "raytracer/renderer/ray.hpp"
 
 using namespace rt;
 

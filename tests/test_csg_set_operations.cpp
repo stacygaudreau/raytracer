@@ -1,10 +1,9 @@
 #include "gtest/gtest.h"
-#include "raytracer/rays.h"
-#include "raytracer/intersection.h"
-#include "raytracer/sphere.h"
-#include "raytracer/cube.h"
-#include "raytracer/utils.h"
-#include "raytracer/csg.h"
+#include "raytracer/renderer/ray.hpp"
+#include "raytracer/renderer/intersection.hpp"
+#include "raytracer/shapes/sphere.hpp"
+#include "raytracer/shapes/cube.hpp"
+#include "raytracer/shapes/csg.hpp"
 
 using namespace rt;
 

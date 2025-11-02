@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "raytracer/canvas.h"
+#include "raytracer/renderer/canvas.hpp"
 #include <string>
 
 using namespace rt;

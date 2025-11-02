@@ -1,8 +1,8 @@
-#include "raytracer/intersection.h"
-#include "raytracer/shapes.h"
-#include "raytracer/sphere.h"
-#include "raytracer/matrix.h"
-#include "raytracer/rays.h"
+#include "raytracer/renderer/intersection.hpp"
+#include "raytracer/shapes/shape.hpp"
+#include "raytracer/shapes/sphere.hpp"
+#include "raytracer/math/matrix.hpp"
+#include "raytracer/renderer/ray.hpp"
 #include "gtest/gtest.h"
 
 #include <numbers>

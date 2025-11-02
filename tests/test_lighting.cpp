@@ -1,4 +1,4 @@
-#include "raytracer/lighting.h"
+#include "raytracer/environment/lighting.hpp"
 #include "gtest/gtest.h"
 
 using namespace rt;

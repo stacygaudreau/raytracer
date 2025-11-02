@@ -1,9 +1,9 @@
 #include "gtest/gtest.h"
-#include "raytracer/cylinder.h"
-#include "raytracer/cone.h"
-#include "raytracer/rays.h"
-#include "raytracer/intersection.h"
-#include "raytracer/utils.h"
+#include "raytracer/shapes/cylinder.hpp"
+#include "raytracer/shapes/cone.hpp"
+#include "raytracer/renderer/ray.hpp"
+#include "raytracer/renderer/intersection.hpp"
+#include "raytracer/utils/utils.hpp"
 
 using namespace rt;
 

@@ -6,31 +6,31 @@
 #   Library target
 #
 add_library(raytracer
-        camera.cpp
-        canvas.cpp
-        colours.cpp
-        cone.cpp
-        csg.cpp
-        cube.cpp
-        cylinder.cpp
-        group.cpp
-        intersection.cpp
-        lighting.cpp
-        materials.cpp
-        matrix.cpp
-        matrix_2d.cpp
-        obj_parser.cpp
-        patterns.cpp
-        plane.cpp
-        rays.cpp
-        renderer.cpp
-        shapes.cpp
-        sphere.cpp
-        textures.cpp
-        triangle.cpp
-        tuples.cpp
-        utils.cpp
-        world.cpp
+        renderer/canvas.cpp
+        renderer/colour.cpp
+        renderer/intersection.cpp
+        renderer/ray.cpp
+        renderer/renderer.cpp
+        shapes/cone.cpp
+        shapes/csg.cpp
+        shapes/cube.cpp
+        shapes/cylinder.cpp
+        shapes/group.cpp
+        shapes/triangle.cpp
+        shapes/shape.cpp
+        shapes/sphere.cpp
+        shapes/plane.cpp
+        environment/camera.cpp
+        environment/lighting.cpp
+        environment/world.cpp
+        materials/material.cpp
+        materials/patterns.cpp
+        materials/textures.cpp
+        math/tuples.cpp
+        math/matrix.cpp
+        math/matrix_2d.cpp
+        utils/obj_parser.cpp
+        utils/utils.cpp
 )
 add_library(raytracer::raytracer ALIAS raytracer)
 

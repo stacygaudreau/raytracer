@@ -1,11 +1,11 @@
 #include "gtest/gtest.h"
-#include "raytracer/intersection.h"
-#include "raytracer/rays.h"
-#include "raytracer/shapes.h"
-#include "raytracer/sphere.h"
-#include "raytracer/matrix.h"
-#include "raytracer/plane.h"
-#include "raytracer/world.h"
+#include "raytracer/renderer/intersection.hpp"
+#include "raytracer/renderer/ray.hpp"
+#include "raytracer/shapes/shape.hpp"
+#include "raytracer/shapes/sphere.hpp"
+#include "raytracer/math/matrix.hpp"
+#include "raytracer/shapes/plane.hpp"
+#include "raytracer/environment/world.hpp"
 
 using namespace rt;
 

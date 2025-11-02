@@ -1,5 +1,5 @@
-#include "raytracer/group.h"
-#include "raytracer/sphere.h"
+#include "raytracer/shapes/group.hpp"
+#include "raytracer/shapes/sphere.hpp"
 #include "gtest/gtest.h"
 
 using namespace rt;
