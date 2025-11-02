@@ -20,7 +20,29 @@ FetchContent_MakeAvailable(googletest)
 #   TestSuite executable
 #
 add_executable(TestSuite
-        test_class.cpp
+        test_camera.cpp
+        test_canvas.cpp
+        test_colours.cpp
+        test_csg_set_operations.cpp
+        test_cubes.cpp
+        test_cylinder_and_cones.cpp
+        test_groups.cpp
+        test_lighting.cpp
+        test_materials.cpp
+        test_matrix.cpp
+        test_matrix_2d.cpp
+        test_parser.cpp
+        test_pattern.cpp
+        test_planes.cpp
+        test_rays.cpp
+        test_renderer.cpp
+        test_shapes.cpp
+        test_spheres.cpp
+        test_textures.cpp
+        test_triangles.cpp
+        test_tuples.cpp
+        test_world.cpp
+        # delete this one later..
         test_log_async.cpp
 )
 
