@@ -13,6 +13,11 @@ namespace rt
 class Canvas
 {
   public:
+    /**
+     * @brief Pixel buffer of an image to be rendered. Supports writing to file as PPM.
+     * @param width
+     * @param height
+     */
     Canvas(size_t width, size_t height);
     size_t getWidth();
     size_t getHeight();

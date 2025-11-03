@@ -58,7 +58,7 @@ Ray Camera::getRayForCanvasPixel(size_t pixelX, size_t pixelY)
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void Camera::setTransform(TransformationMatrix newTransform)
 {
-    transform        = newTransform;
+    transform = newTransform;
     inverseTransform = transform.inverse();
 }
 
@@ -81,7 +81,7 @@ Canvas Camera::render(World world)
         nRowsDone++;
         std::cout << nRowsDone << "/" << vSize << " rows\n";
     }
-    auto t1       = std::chrono::high_resolution_clock::now();
+    auto t1= std::chrono::high_resolution_clock::now();
     auto tSeconds = std::chrono::duration_cast<std::chrono::seconds>(t1 - t0);
     auto tMinutes = std::chrono::duration_cast<std::chrono::minutes>(t1 - t0);
     std::cout << "///////////////////////////////////////////////////////////////\n";

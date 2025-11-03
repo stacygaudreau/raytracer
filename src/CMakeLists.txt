@@ -31,6 +31,7 @@ add_library(raytracer
         math/matrix_2d.cpp
         utils/obj_parser.cpp
         utils/utils.cpp
+        logging/logging.cpp
 )
 add_library(raytracer::raytracer ALIAS raytracer)
 
