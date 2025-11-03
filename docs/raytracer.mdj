@@ -1,0 +1,241 @@
+{
+	"_type": "Project",
+	"_id": "AAAAAAFF+h6SjaM2Hec=",
+	"name": "RaytracerLib",
+	"ownedElements": [
+		{
+			"_type": "UMLModel",
+			"_id": "AAAAAAFF+qBWK6M3Z8Y=",
+			"_parent": {
+				"$ref": "AAAAAAFF+h6SjaM2Hec="
+			},
+			"name": "Model",
+			"ownedElements": [
+				{
+					"_type": "UMLComponentDiagram",
+					"_id": "AAAAAAGaRe76Zx/X2ok=",
+					"_parent": {
+						"$ref": "AAAAAAFF+qBWK6M3Z8Y="
+					},
+					"name": "Rendering",
+					"ownedViews": [
+						{
+							"_type": "UMLComponentView",
+							"_id": "AAAAAAGaRe/00h/dTME=",
+							"_parent": {
+								"$ref": "AAAAAAGaRe76Zx/X2ok="
+							},
+							"model": {
+								"$ref": "AAAAAAGaRe/00R/bms4="
+							},
+							"subViews": [
+								{
+									"_type": "UMLNameCompartmentView",
+									"_id": "AAAAAAGaRe/00h/eVmM=",
+									"_parent": {
+										"$ref": "AAAAAAGaRe/00h/dTME="
+									},
+									"model": {
+										"$ref": "AAAAAAGaRe/00R/bms4="
+									},
+									"subViews": [
+										{
+											"_type": "LabelView",
+											"_id": "AAAAAAGaRe/00h/fWDs=",
+											"_parent": {
+												"$ref": "AAAAAAGaRe/00h/eVmM="
+											},
+											"visible": false,
+											"font": "Arial;13;0",
+											"parentStyle": true,
+											"left": 800,
+											"top": 96,
+											"height": 13
+										},
+										{
+											"_type": "LabelView",
+											"_id": "AAAAAAGaRe/00h/g/jg=",
+											"_parent": {
+												"$ref": "AAAAAAGaRe/00h/eVmM="
+											},
+											"font": "Arial;13;1",
+											"parentStyle": true,
+											"left": 873,
+											"top": 335,
+											"width": 315,
+											"height": 13,
+											"text": "Renderer"
+										},
+										{
+											"_type": "LabelView",
+											"_id": "AAAAAAGaRe/00h/hmlA=",
+											"_parent": {
+												"$ref": "AAAAAAGaRe/00h/eVmM="
+											},
+											"visible": false,
+											"font": "Arial;13;0",
+											"parentStyle": true,
+											"left": 800,
+											"top": 96,
+											"width": 73.67724609375,
+											"height": 13,
+											"text": "(from Model)"
+										},
+										{
+											"_type": "LabelView",
+											"_id": "AAAAAAGaRe/00h/id+o=",
+											"_parent": {
+												"$ref": "AAAAAAGaRe/00h/eVmM="
+											},
+											"visible": false,
+											"font": "Arial;13;0",
+											"parentStyle": true,
+											"left": 800,
+											"top": 96,
+											"height": 13,
+											"horizontalAlignment": 1
+										}
+									],
+									"font": "Arial;13;0",
+									"parentStyle": true,
+									"left": 868,
+									"top": 328,
+									"width": 325,
+									"height": 25,
+									"stereotypeLabel": {
+										"$ref": "AAAAAAGaRe/00h/fWDs="
+									},
+									"nameLabel": {
+										"$ref": "AAAAAAGaRe/00h/g/jg="
+									},
+									"namespaceLabel": {
+										"$ref": "AAAAAAGaRe/00h/hmlA="
+									},
+									"propertyLabel": {
+										"$ref": "AAAAAAGaRe/00h/id+o="
+									}
+								},
+								{
+									"_type": "UMLAttributeCompartmentView",
+									"_id": "AAAAAAGaRe/00h/jqnc=",
+									"_parent": {
+										"$ref": "AAAAAAGaRe/00h/dTME="
+									},
+									"model": {
+										"$ref": "AAAAAAGaRe/00R/bms4="
+									},
+									"visible": false,
+									"font": "Arial;13;0",
+									"parentStyle": true,
+									"left": 400,
+									"top": 48,
+									"width": 48.66357421875,
+									"height": 10
+								},
+								{
+									"_type": "UMLOperationCompartmentView",
+									"_id": "AAAAAAGaRe/00h/kmzs=",
+									"_parent": {
+										"$ref": "AAAAAAGaRe/00h/dTME="
+									},
+									"model": {
+										"$ref": "AAAAAAGaRe/00R/bms4="
+									},
+									"visible": false,
+									"font": "Arial;13;0",
+									"parentStyle": true,
+									"left": 400,
+									"top": 48,
+									"width": 10,
+									"height": 10
+								},
+								{
+									"_type": "UMLReceptionCompartmentView",
+									"_id": "AAAAAAGaRe/00x/l2SI=",
+									"_parent": {
+										"$ref": "AAAAAAGaRe/00h/dTME="
+									},
+									"model": {
+										"$ref": "AAAAAAGaRe/00R/bms4="
+									},
+									"visible": false,
+									"font": "Arial;13;0",
+									"parentStyle": true,
+									"left": 400,
+									"top": 48,
+									"width": 10,
+									"height": 10
+								},
+								{
+									"_type": "UMLTemplateParameterCompartmentView",
+									"_id": "AAAAAAGaRe/00x/m6Ac=",
+									"_parent": {
+										"$ref": "AAAAAAGaRe/00h/dTME="
+									},
+									"model": {
+										"$ref": "AAAAAAGaRe/00R/bms4="
+									},
+									"visible": false,
+									"font": "Arial;13;0",
+									"parentStyle": true,
+									"left": 400,
+									"top": 48,
+									"width": 10,
+									"height": 10
+								}
+							],
+							"font": "Arial;13;0",
+							"parentStyle": false,
+							"containerChangeable": true,
+							"left": 848,
+							"top": 328,
+							"width": 344,
+							"height": 232,
+							"nameCompartment": {
+								"$ref": "AAAAAAGaRe/00h/eVmM="
+							},
+							"suppressAttributes": true,
+							"suppressOperations": true,
+							"attributeCompartment": {
+								"$ref": "AAAAAAGaRe/00h/jqnc="
+							},
+							"operationCompartment": {
+								"$ref": "AAAAAAGaRe/00h/kmzs="
+							},
+							"receptionCompartment": {
+								"$ref": "AAAAAAGaRe/00x/l2SI="
+							},
+							"templateParameterCompartment": {
+								"$ref": "AAAAAAGaRe/00x/m6Ac="
+							}
+						},
+						{
+							"_type": "UMLNoteView",
+							"_id": "AAAAAAGaRfDVnSAHASs=",
+							"_parent": {
+								"$ref": "AAAAAAGaRe76Zx/X2ok="
+							},
+							"font": "Arial;13;0",
+							"parentStyle": false,
+							"left": 176,
+							"top": 208,
+							"width": 328,
+							"height": 352,
+							"text": "RENDERER DESIGN/REQs\n\n- a Renderer instance is responsible for rendering a 3D Canvas into a bitmap\n- (a Canvas describes a target output image based on a Camera's perspective in a given 3D scene)\n- concurrent rendering via render workers\n- a renderer may be used for different purposes in a desktop app, eg: not only for high quality output images, it can also be used to generate low-res previews, and will also be used to generate small in-app renders of different 3D assets the user creates/edits (eg: in a \"shape editor\" window)\n- is more than one Renderer supposed to exist at a time, or should it be a global instance which just has preferences loaded into it? Will have to decide\n- probably we could have a single Renderer existing, and then it manages things like a queue of jobs and priorities (background"
+						}
+					]
+				},
+				{
+					"_type": "UMLComponent",
+					"_id": "AAAAAAGaRe/00R/bms4=",
+					"_parent": {
+						"$ref": "AAAAAAFF+qBWK6M3Z8Y="
+					},
+					"name": "Renderer",
+					"documentation": "# Renderer"
+				}
+			]
+		}
+	],
+	"documentVersion": 1
+}
