@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "raytracer/utils/obj_parser.hpp"
 #include "raytracer/shapes/triangle.hpp"
+#include "raytracer/logging/logging.hpp"
 
 #include <iostream>
 #include <fstream>

@@ -104,7 +104,7 @@ Provides status information about a particular `RenderJob`. eg: waiting/running 
 
 ### `RenderPool`
 
-Manages a pool of threads to provide concurrent rendering. Accepts tiles to render and allows reconfiguring pool attributes, and reporting information about running jobs and other metrics.
+Manages a pool of RenderWorkers to provide concurrent rendering. Accepts tiles to render and allows reconfiguring pool attributes, and reporting information about running jobs and other metrics.
 
 The threads are dumb; they simply ask the scheduler for the next `RenderTile` and run it.
 

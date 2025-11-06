@@ -34,6 +34,9 @@ add_library(raytracer
         logging/logging.cpp
 )
 add_library(raytracer::raytracer ALIAS raytracer)
+if (BUILD_TESTING)
+    target_compile_definitions(raytracer PRIVATE IS_TEST_SUITE=1) # IS_TEST_SUITE macro enabled
+endif()
 
 #
 #   Include paths

@@ -54,6 +54,7 @@ target_link_libraries(TestSuite
 )
 
 target_compile_features(TestSuite PUBLIC cxx_std_23)
+target_compile_definitions(TestSuite PRIVATE IS_TEST_SUITE=1) # IS_TEST_SUITE macro enabled
 
 # CTest
 include(GoogleTest)

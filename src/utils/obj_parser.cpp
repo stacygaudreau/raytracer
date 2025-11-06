@@ -1,8 +1,8 @@
 #include "raytracer/utils/obj_parser.hpp"
 #include "raytracer/utils/utils.hpp"
+#include "raytracer/logging/logging.hpp"
 
 #include <iostream>
-#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -14,7 +14,9 @@ namespace rt
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 ParserOBJ::ParserOBJ()
 :   geometry(std::make_unique<Group>())
-{}
+{
+    Log::init();
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 std::unique_ptr<std::ifstream> ParserOBJ::openFile(std::string fileName)
@@ -22,7 +24,7 @@ std::unique_ptr<std::ifstream> ParserOBJ::openFile(std::string fileName)
     auto file = std::make_unique<std::ifstream>(fileName);
     if (!file->is_open())
     {
-        std::cout << "<OBJParser>: Error! OBJ file '" << fileName << "' cannot be opened.\n";
+        CORE_ERROR(".obj file cannot be opened: {}", fileName);
         return nullptr;
     }
     else
@@ -44,8 +46,7 @@ size_t ParserOBJ::parseFile(std::unique_ptr<std::ifstream> file)
         }
         file->close();
     }
-    std::cout << "<OBJParser>: Parsing complete. Ignored " << nLinesIgnored
-              << " lines of unsupported statements.\n";
+    CORE_INFO(".obj parsing complete. ignored {} lines of unsupported elements", nLinesIgnored);
     return nLinesIgnored;
 }
 
@@ -177,7 +178,7 @@ bool ParserOBJ::isValidGroup(const std::vector<std::string>& tokens)
 Group& ParserOBJ::parseToGroup(const std::string& filename)
 {
     auto file = openFile(filename);
-    std::cout << "<OBJParser>: Loading triangles from OBJ file...\n";
+    CORE_INFO("loading triangles from .obj file");
     parseFile(std::move(file));
     return getGroup();
 }

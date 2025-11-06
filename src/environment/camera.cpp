@@ -6,11 +6,11 @@ namespace rt
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Camera
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-Camera::Camera(size_t hSize, size_t vSize, double fieldOfView)
-: hSize(hSize),
-  vSize(vSize),
-  hSizeF(static_cast<double>(hSize)),
-  vSizeF(static_cast<double>(vSize)),
+Camera::Camera(size_t _hSize, size_t _vSize, double fieldOfView)
+: _hSize(_hSize),
+  _vSize(_vSize),
+  hSizeF(static_cast<double>(_hSize)),
+  vSizeF(static_cast<double>(_vSize)),
   fieldOfView(fieldOfView)
 {
     // the canvas is placed one world unit away from the "front" of the camera
@@ -66,20 +66,20 @@ void Camera::setTransform(TransformationMatrix newTransform)
 Canvas Camera::render(World world)
 {
     auto t0 = std::chrono::high_resolution_clock::now();
-    std::cout << "\nRaytracing of " << hSize << "x" << vSize << "px image started. "
-              << hSize * vSize << " pixels to render...\n";
+    std::cout << "\nRaytracing of " << _hSize << "x" << _vSize << "px image started. "
+              << _hSize * _vSize << " pixels to render...\n";
     size_t nRowsDone{};
-    Canvas image{ hSize, vSize };
-    for (size_t y{}; y < vSize; ++y)
+    Canvas image{ _hSize, _vSize };
+    for (size_t y{}; y < _vSize; ++y)
     {
-        for (size_t x{}; x < hSize; ++x)
+        for (size_t x{}; x < _hSize; ++x)
         {
             auto ray   = getRayForCanvasPixel(x, y);
             auto pixel = world.traceRayToPixel(ray, World::MAX_RAYS);
             image.writePixel(x, y, pixel);
         }
         nRowsDone++;
-        std::cout << nRowsDone << "/" << vSize << " rows\n";
+        std::cout << nRowsDone << "/" << _vSize << " rows\n";
     }
     auto t1= std::chrono::high_resolution_clock::now();
     auto tSeconds = std::chrono::duration_cast<std::chrono::seconds>(t1 - t0);

@@ -39,16 +39,18 @@ class Camera
     /// @brief Set the transform matrix for the camera's position and orientation in worldspace.
     void setTransform(TransformationMatrix newTransform);
 
-    [[nodiscard]] inline size_t getVSize() const { return vSize; };
-    [[nodiscard]] inline size_t getHSize() const { return hSize; };
-    [[nodiscard]] inline double getPixelSize() const { return pixelSize; };
+    void setVSize(size_t vSize) noexcept { _vSize = vSize; }
+    [[nodiscard]] inline size_t getVSize() const noexcept { return _vSize; }
+    void setHSize(size_t hSize) noexcept { _hSize = hSize; }
+    [[nodiscard]] inline size_t getHSize() const noexcept { return _hSize; }
+    [[nodiscard]] inline double getPixelSize() const noexcept { return pixelSize; }
     /// @brief Returns true when the camera has a horizontal aspect ratio. False if it is vertical.
-    [[nodiscard]] inline bool getAspectIsHorizontal() const { return aspectRatio >= 1.0; };
-    [[nodiscard]] inline double getFOV() const { return fieldOfView; };
-    [[nodiscard]] inline TransformationMatrix getTransform() const { return transform; };
+    [[nodiscard]] inline bool getAspectIsHorizontal() const { return aspectRatio >= 1.0; }
+    [[nodiscard]] inline double getFOV() const { return fieldOfView; }
+    [[nodiscard]] inline TransformationMatrix getTransform() const { return transform; }
 
   private:
-    size_t hSize, vSize;
+    size_t _hSize, _vSize;
     double hSizeF, vSizeF;  // cached double versions of hSize/vSize
     double fieldOfView;
     TransformationMatrix transform;

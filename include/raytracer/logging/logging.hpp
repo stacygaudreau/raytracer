@@ -20,6 +20,7 @@ namespace Log {
     void init();
     std::shared_ptr<spdlog::logger> core();
     std::shared_ptr<spdlog::logger> renderer();
+    inline const std::string LOGFILE_NAME{ "log/raytracer.log" };
 }
 
 #define CORE_TRACE(fmt, ...)    Log::core()->trace   ("[{}] " fmt, __func__, ##__VA_ARGS__)
