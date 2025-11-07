@@ -60,7 +60,7 @@ enum class Status : uint8_t {
 
 /** @brief Numerical identifier for render job */
 using JobID = uint64_t;
-constexpr auto JobID_INVALID = 0;
+constexpr auto JobID_INVALID = std::numeric_limits<JobID>::max();
 
 /**
  * @brief Priority key ranks tile priority in the render queue
@@ -117,6 +117,7 @@ struct Tile {
     PKey priority{ PKey_MIN };
     uint32_t x0{}, y0{}, x1{}, y1{};
     uint32_t nPass{ 0 };
+    uint32_t blockSize{ 1 };
 };
 
 /*
@@ -148,12 +149,9 @@ public:
      * @param height total image height
      * @return priority ranked key for tile
      */
-    PKey getPriorityKeyForTile(JobType type, uint32_t nPass, uint32_t tile_cx, uint32_t tile_cy,
+    static PKey getPriorityKeyForTile(JobType type, uint32_t nPass, uint32_t tile_cx, uint32_t tile_cy,
                                uint32_t width, uint32_t height) {
-        if (type == JobType::invalid) [[unlikely]] {
-            RENDER_ERROR("invalid job type for tile priority");
-            return PKey_MIN;
-        }
+        ASSERT(type != JobType::invalid, "invalid job type for tile priority");
         const auto p_type = type_to_priority(type) << 56;
         const auto p_pass = static_cast<uint64_t>(nPass & 0xFF) << 48;
         // fast manhattan distance from centre of image
@@ -174,20 +172,31 @@ public:
     static std::vector<Tile> getTilesForJobState(const std::shared_ptr<JobState>& state,
                                                  const uint32_t tileSize=32) {
         const auto& job = state->job;
+        ASSERT(job.type != JobType::invalid, "job type must be specified before getting tiles");
         const auto W = job.width, H = job.height;
         std::vector<Tile> tiles;
-        // tiles for one pass
-        for (uint32_t y{}; y < H; y += tileSize) {
-            for (uint32_t x{}; x < W; x += tileSize) {
-                Tile t{ state };
-                t.jobID = state->job.id;
-                // x0 y0 are inclusive
-                t.x0 = x;
-                t.y0 = y;
-                // x1 y1 are exclusive
-                t.x1 = std::min(W, x + tileSize);
-                t.y1 = std::min(H, y + tileSize);
-                tiles.emplace_back(t);
+        // one or more sets of tiles are created -- one for each progressive pass
+        for (size_t nPass{}; nPass < job.passes.size(); ++nPass) {
+            const auto blockSize = std::max(1u, job.passes.at(nPass));
+            // tiles for a single pass
+            for (uint32_t y{}; y < H; y += tileSize) {
+                for (uint32_t x{}; x < W; x += tileSize) {
+                    Tile t{ state };
+                    t.jobID = state->job.id;
+                    t.nPass = nPass;
+                    t.blockSize = blockSize;
+                    // x0 y0 are inclusive
+                    t.x0 = x;
+                    t.y0 = y;
+                    // x1 y1 are exclusive
+                    t.x1 = std::min(W, x + tileSize);
+                    t.y1 = std::min(H, y + tileSize);
+                    // priority in queue
+                    const auto cx = (t.x1 + t.x0) / 2;
+                    const auto cy = (t.y1 + t.y0) / 2;
+                    t.priority = getPriorityKeyForTile(job.type, nPass, cx, cy, W, H);
+                    tiles.emplace_back(std::move(t));
+                }
             }
         }
         return tiles;

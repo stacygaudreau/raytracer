@@ -12,6 +12,27 @@
 
 #pragma once
 
+#include <iostream>
+#include <cstdlib>
+
+/**
+ * @brief Assertion macro which also logs
+ */
+#ifndef NDEBUG
+#define ASSERT(cond, msg) \
+    do { \
+        if(!(cond)) [[unlikely]] { \
+            std::cerr << "--ABORT--\n" \
+                      << "assertion: " << msg << "\ncondition: " << #cond \
+                      << "\n@location: " << __FILE__ << ":" << __LINE__ \
+                      << "\n@function: " << __func__ << "\n\n"; \
+            std::abort(); \
+        } \
+    } while(0)
+#else
+    #define ASSERT(cond, msg) do { (void)sizeof(cond); } while(0)
+#endif
+
 /**
  * @brief Delete copy/move ctor and assignment
  * operators for a given classname, making it non-copyable
