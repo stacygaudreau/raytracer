@@ -4,9 +4,11 @@
 #include "raytracer/renderer/canvas.hpp"
 #include "raytracer/shapes/sphere.hpp"
 #include "raytracer/logging/logging.hpp"
+#include <chrono>
 
 using namespace rt;
 using namespace rt::Render;
+using namespace std::literals::chrono_literals;
 
 
 /*
@@ -52,7 +54,7 @@ protected:
     std::unique_ptr<Job> job{ nullptr };
     void SetUp() override {
         RenderEngineTests::SetUp();
-        job = std::make_unique<Job>(camera, world);
+        job = std::make_unique<Job>(camera, world, JobType::invalid);
     }
 };
 
@@ -83,8 +85,8 @@ protected:
 TEST_F(RenderJobStateTests, ConstructedWithProperties) {
     EXPECT_NE(state, nullptr);
     EXPECT_EQ(state->job.id, id);
-    EXPECT_EQ(state->nTilesRemain, 0);
-    EXPECT_EQ(state->status, Status::invalid);
+    EXPECT_EQ(state->nTilesRemain.load(), 0);
+    EXPECT_EQ(state->status.load(), Status::invalid);
 }
 
 
@@ -114,9 +116,8 @@ TEST_F(RenderJobSchedulerTests, GetEvenTilesForSinglePassSquareViewportJob) {
     // a single pass job is broken up into a set of tiles
     //  from a camera with a perfectly square viewport with EVEN tile size
     cam.setHSize(256); cam.setVSize(256);
-    Job job{ cam, world };
+    Job job{ cam, world, JobType::background };
     job.id = 12345;
-    job.type = JobType::background;
     auto state = std::make_shared<JobState>(job);
     auto tiles = sched->getTilesForJobState(state, 32);
     EXPECT_EQ(tiles.size(), 64);
@@ -152,22 +153,19 @@ TEST_F(RenderJobSchedulerTests, GetEvenTilesForSinglePassSquareViewportJob) {
 TEST_F(RenderJobSchedulerTests, GetSingleTileWhenImageIsSmall) {
     // tileSize is larger than the actual image
     cam.setHSize(31); cam.setVSize(31);
-    Job job{ cam, world };
-    job.type = JobType::background;
+    Job job{ cam, world, JobType::background };
     auto state = std::make_shared<JobState>(job);
     auto tiles = sched->getTilesForJobState(state, 32);
     EXPECT_EQ(tiles.size(), 1);
     // tileSize is exactly the image size
     cam.setHSize(32); cam.setVSize(32);
-    Job job2{ cam, world };
-    job2.type = JobType::background;
+    Job job2{ cam, world, JobType::background };
     auto state2 = std::make_shared<JobState>(job2);
     tiles = sched->getTilesForJobState(state2, 32);
     EXPECT_EQ(tiles.size(), 1);
     // tileSize is larger than the actual image on one axis
     cam.setHSize(33); cam.setVSize(32);
-    Job job3{ cam, world };
-    job3.type = JobType::background;
+    Job job3{ cam, world, JobType::background };
     auto state3 = std::make_shared<JobState>(job3);
     tiles = sched->getTilesForJobState(state3, 32);
     EXPECT_EQ(tiles.size(), 2);
@@ -190,8 +188,7 @@ TEST_F(RenderJobSchedulerTests, GetTilesForSinglePassOddTileSizeRect) {
     //   of odd tiles, resulting in some oddly sized tiles at the edges
     cam.setHSize(62); cam.setVSize(32);
     constexpr uint32_t tileSize{ 15 };
-    Job job{ cam, world };
-    job.type = JobType::background;
+    Job job{ cam, world, JobType::background };
     auto state = std::make_shared<JobState>(job);
     auto tiles = sched->getTilesForJobState(state, tileSize);
     // tile matrix would be 5x3
@@ -254,10 +251,9 @@ TEST_F(RenderJobSchedulerTests, GetTilesForMultiPass) {
     // a job with more than one progressive rendering pass
     //  is broken into an appropriate set of tiles
     cam.setHSize(128); cam.setVSize(128);
-    Job job{ cam, world };
+    Job job{ cam, world, JobType::background };
     job.id = 12345;
     job.passes = { 16, 8, 4, 1 };
-    job.type = JobType::background;
     auto state = std::make_shared<JobState>(job);
     auto tiles = sched->getTilesForJobState(state, 32);
     EXPECT_EQ(tiles.size(), 64);
@@ -271,9 +267,8 @@ TEST_F(RenderJobSchedulerTests, SchedulerAssignsAllTileProperties) {
     // priority keys and other properties are indeed
     //  assigned to tiles by the scheduler
     cam.setHSize(128); cam.setVSize(128);
-    Job job{ cam, world };
+    Job job{ cam, world, JobType::offline };
     job.id = 12345;
-    job.type = JobType::offline;
     job.passes = { 16, 8, 4, 1 };
     auto state = std::make_shared<JobState>(job);
     auto tiles = sched->getTilesForJobState(state, 32);
@@ -288,6 +283,201 @@ TEST_F(RenderJobSchedulerTests, SchedulerAssignsAllTileProperties) {
     EXPECT_NE(t.priority, PKey_MIN);
 }
 
+TEST_F(RenderJobSchedulerTests, QueueTopIsLowestPKeyValue) {
+    // the tile queue is sorted by min priority PKey
+    //  (smaller PKey => higher actual priority)
+    auto job = Job{ camera, world, JobType::offline };
+    auto state = std::make_shared<JobState>(job);
+    auto t_p2 = Tile{ state }; // lowest
+    t_p2.priority = PKey_MIN - 100;
+    auto t_p1 = Tile{ state }; // higher
+    t_p1.priority = t_p2.priority - 100;
+    auto t_p0 = Tile{ state }; // highest
+    t_p0.priority = 0;
+    // add to queue in wrong priority
+    sched->tiles.emplace(t_p1);
+    sched->tiles.emplace(t_p0);
+    sched->tiles.emplace(t_p2);
+    // order should be p0, p1, p2 when popping
+    EXPECT_EQ(sched->tiles.top(), t_p0);
+    sched->tiles.pop();
+    EXPECT_EQ(sched->tiles.top(), t_p1);
+    sched->tiles.pop();
+    EXPECT_EQ(sched->tiles.top(), t_p2);
+    sched->tiles.pop();
+    EXPECT_TRUE(sched->tiles.empty());
+}
+
+TEST_F(RenderJobSchedulerTests, GetNextJobID) {
+    //  the next job ID is returned from the scheduler
+    EXPECT_EQ(sched->jobID, JobID_INVALID);
+    auto next = sched->getNextJobID();
+    EXPECT_EQ(next, 0);
+    next = sched->getNextJobID();
+    EXPECT_EQ(next, 1);
+}
+
+TEST_F(RenderJobSchedulerTests, JobIsSubmitted) {
+    // a single job is added to the queue and all details
+    //  are verified
+    cam.setHSize(64);
+    cam.setVSize(64);
+    sched->jobID = 9000;
+    Job job{ cam, world, JobType::offline };
+    auto id = sched->submit(job);
+    // the job was given an appropriate ID
+    EXPECT_EQ(id, 9001);
+    EXPECT_EQ(sched->jobID, 9001);
+    // each expected tile is present in the queue
+    Job job_dupe{ cam, world, JobType::offline };
+    job_dupe.id = 9001;
+    auto state_req = std::make_shared<JobState>(job_dupe);
+    auto ts_req = sched->getTilesForJobState(state_req);
+    std::vector<Tile> ts;
+    while (!sched->tiles.empty()) {
+        ts.emplace_back(sched->tiles.top());
+        sched->tiles.pop();
+    }
+    // verify each tile was actually recv'd from the queue
+    for (auto& t: ts_req) {
+        EXPECT_TRUE(std::ranges::contains(ts, t));
+    }
+    // state for the job is maintained on the map
+    //  and correct properties are set on the state
+    auto state = std::shared_ptr<JobState>{ nullptr };
+    auto it = sched->jobs.find(9001);
+    if (it != sched->jobs.end()) {
+        state = it->second;
+    }
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->nTilesRemain, ts_req.size());
+    EXPECT_EQ(state->status.load(), Status::in_progress);
+}
+
+TEST_F(RenderJobSchedulerTests, IgnoreOfflineJobsInLiveGUIMode) {
+    // submitting an offline type render job is ignored when
+    //  the scheduler is in Live GUI rendering mode
+}
+
+TEST_F(RenderJobSchedulerTests, GetNoTileWhenEmpty) {
+    // no tile is returned, when the queue is empty
+    auto th = std::jthread{
+        [&] {
+            std::this_thread::sleep_for(15ms);
+            sched->shutdown();
+        }
+    };
+    auto t = sched->getNextTile();
+    EXPECT_FALSE(t);
+}
+
+TEST_F(RenderJobSchedulerTests, GetNextPriorityTile) {
+    // the getNextTile method returns the highest priority
+    //  tile in the queue
+    // a single job is added to the queue and all details
+    //  are verified
+    EXPECT_EQ(sched->jobs.size(), 0);
+    cam.setHSize(96);
+    cam.setVSize(32); // 3x1 tiles
+    Job job{ cam, world, JobType::offline };
+    job.id = 0;
+    auto state = std::make_shared<JobState>(job);
+    auto tiles = sched->getTilesForJobState(state);
+    const auto id = sched->submit(job);
+    EXPECT_EQ(sched->jobs.size(), 1);
+    // middle tile should be highest priority (centre)
+    auto t_received = sched->getNextTile();
+    EXPECT_EQ(t_received, tiles.at(1));
+}
+
+TEST_F(RenderJobSchedulerTests, GetJobState) {
+    // the correct state is returned (or none) from the job
+    //  state register
+    cam.setHSize(256);
+    cam.setVSize(256);
+    const auto id1 = sched->submit({
+        cam, world, JobType::realtime
+    });
+    const auto id2 = sched->submit({
+        cam, world, JobType::realtime
+    });
+    // id1
+    auto s1 = sched->getJobState(id1);
+    auto s2 = sched->getJobState(id2);
+    ASSERT_NE(nullptr, s1);
+    ASSERT_NE(nullptr, s2);
+    EXPECT_EQ(id1, sched->getJobState(id1)->job.id);
+    EXPECT_EQ(id2, sched->getJobState(id2)->job.id);
+    // not found
+    EXPECT_EQ(sched->getJobState(9001), nullptr);
+}
+
+TEST_F(RenderJobSchedulerTests, SetTileCompleteDecrementsRemaining) {
+    // calling .setTileComplete() marks the tile completed
+    cam.setHSize(64);
+    cam.setVSize(64);
+    const auto id = sched->submit({
+        cam, world, JobType::offline
+    });
+    auto s = sched->getJobState(id);
+    auto t = sched->getNextTile();
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(s->nTilesRemain.load(), 4);
+    // completing the tile decrements remaining
+    sched->setTileComplete(t.value());
+    EXPECT_EQ(s->nTilesRemain.load(), 3);
+}
+
+TEST_F(RenderJobSchedulerTests, SetTileCompleteFinishesJob) {
+    // completing the final tile in a job finishes it
+    cam.setHSize(64);
+    cam.setVSize(64);
+    const auto id = sched->submit({
+        cam, world, JobType::offline
+    });
+    auto s = sched->getJobState(id);
+    ASSERT_NE(s, nullptr);
+    auto t = sched->getNextTile();
+    sched->setTileComplete(t.value());
+    t = sched->getNextTile();
+    sched->setTileComplete(t.value());
+    t = sched->getNextTile();
+    sched->setTileComplete(t.value());
+    EXPECT_EQ(s->nTilesRemain.load(), 1);
+    // the final tile completes the job
+    t = sched->getNextTile();
+    sched->setTileComplete(t.value());
+    EXPECT_EQ(s->nTilesRemain.load(), 0);
+    // completed job no longer present in register
+    s = sched->getJobState(id);
+    EXPECT_EQ(s, nullptr);
+}
+
+TEST_F(RenderJobSchedulerTests, JobIsCancelled) {
+    // an in progress job is cancelled and its tiles
+    //  are no longer acquired from the queue
+    cam.setHSize(256);
+    cam.setVSize(256);
+    const auto id = sched->submit({
+        cam, world, JobType::realtime
+    });
+    // grab and complete few tiles
+    for (int i{ }; i < 3; ++i) {
+        auto t = sched->getNextTile();
+        sched->setTileComplete(t.value());
+    }
+    // cancel job
+    sched->cancel(id);
+    // no more tiles received
+    auto t = sched->getNextTile();
+    EXPECT_FALSE(t);
+    // the job state reflects being cancelled
+    auto state = sched->getJobState(id);
+    ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->nTilesRemain.load(), 0);
+    EXPECT_EQ(state->status.load(std::memory_order_relaxed),
+              Status::cancelled);
+}
 
 /*
  *  RenderWorker
@@ -296,6 +486,7 @@ class RenderWorkerTests: public RenderEngineTests {
 protected:
     JobScheduler scheduler{ };
     std::unique_ptr<Worker> worker{ nullptr };
+    static constexpr uint32_t ID{ 2 };
 
     void SetUp() override {
         RenderEngineTests::SetUp();
@@ -303,7 +494,36 @@ protected:
 };
 
 TEST_F(RenderWorkerTests, ConstructedWithDefaults) {
-    auto worker = std::make_unique<Worker>();
+    auto worker = std::make_unique<Worker>(ID, scheduler);
     EXPECT_NE(worker, nullptr);
+    EXPECT_EQ(worker->id, ID);
+    EXPECT_EQ(worker->tile, nullptr);
+    EXPECT_EQ(worker->thread, nullptr);
+    EXPECT_EQ(worker->isRunning.load(), false);
+}
+
+TEST_F(RenderWorkerTests, ThreadStartsAndStops) {
+    auto worker = std::make_unique<Worker>(ID, scheduler);
+    EXPECT_EQ(worker->thread, nullptr);
+    EXPECT_EQ(worker->isRunning.load(), false);
+    worker->start();
+    std::this_thread::sleep_for(20ms);
+    EXPECT_NE(worker->thread, nullptr);
+    EXPECT_EQ(worker->isRunning.load(), true);
+    EXPECT_TRUE(worker->thread->joinable());
+    worker->stop();
+    std::this_thread::sleep_for(20ms);
+    EXPECT_EQ(worker->isRunning.load(), false);
+    EXPECT_FALSE(worker->thread->joinable());
+}
+
+TEST_F(RenderWorkerTests, LoadsTilesFromScheduler) {
+    auto worker = std::make_unique<Worker>(ID, scheduler);
+    // Tiles should automatically be loaded into the worker
+    //  from the scheduer during .run()
+    EXPECT_EQ(worker->tile, nullptr);
+    worker->start();
+    std::this_thread::sleep_for(20ms);
+    EXPECT_NE(worker->tile, nullptr);
 }
 

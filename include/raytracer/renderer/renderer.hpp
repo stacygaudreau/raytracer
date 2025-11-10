@@ -22,6 +22,8 @@
 #include "raytracer/types.hpp"
 #include <vector>
 #include <cmath>
+#include <condition_variable>
+#include <thread>
 
 namespace rt::Render {
 /**
@@ -33,6 +35,7 @@ enum class JobType : uint8_t {
     offline = 2,    // print quality image rendering to disk
     invalid = std::numeric_limits<uint8_t>::max()
 };
+
 inline constexpr uint64_t type_to_priority(JobType type) noexcept {
     return static_cast<uint64_t>(type);
 }
@@ -41,8 +44,8 @@ inline constexpr uint64_t type_to_priority(JobType type) noexcept {
  * @brief Rendering mode
  */
 enum class Mode : uint8_t {
-    live_gui,       // rendering for in the GUI in realtime
-    render_only,    // rendering to eg: disk; the GUI is locked
+    live_gui,    // rendering for in the GUI in realtime
+    render_only, // rendering to eg: disk; the GUI is locked
     invalid = std::numeric_limits<uint8_t>::max()
 };
 
@@ -75,17 +78,21 @@ constexpr auto PKey_MIN = std::numeric_limits<uint64_t>::max();
  * @details Contains references to the 3d world, camera, and image targets to render.
  */
 struct Job {
-    Job(Camera& camera, World& world) : camera(camera),
-                                        world(world),
-                                        width(camera.getHSize()),
-                                        height(camera.getVSize()) { }
-    bool operator==(const Job& other) const {
-        return this == &other;
+    Job(Camera& camera, World& world, JobType type) : camera(camera),
+                                                      world(world),
+                                                      type(type),
+                                                      width(camera.getHSize()),
+                                                      height(camera.getVSize()) {
     }
+
+    bool operator==(const Job& other) const {
+        return id == other.id;
+    }
+
     Camera& camera;
     World& world;
-    JobType type{ JobType::invalid };
-    uint32_t width{}, height{};
+    JobType type;
+    uint32_t width{ }, height{ };
     // progressive refinement pass block sizes in (NxN) pixels
     // eg: { 32, 16, 8, 1 } gives you 4 passes with 32px, 16px 8px and 1px resolutions
     std::vector<uint32_t> passes{ 1 };
@@ -97,13 +104,16 @@ struct Job {
  * @brief Render job state for the Scheduler
  */
 struct JobState {
-    explicit JobState(Job job) : job(std::move(job)) { }
-    bool operator==(const JobState& other) const {
-        return this == &other;
+    explicit JobState(Job job) : job(std::move(job)) {
     }
+
+    bool operator==(const JobState& other) const {
+        return job == other.job;
+    }
+
     Job job;
-    uint32_t nTilesRemain{ };
-    Status status{ Status::invalid };
+    std::atomic<uint32_t> nTilesRemain{ };
+    std::atomic<Status> status{ Status::invalid };
 };
 
 
@@ -111,13 +121,32 @@ struct JobState {
  * @brief Rectangular region of an image to render
  */
 struct Tile {
-    explicit Tile(const std::shared_ptr<JobState> &state) : state(state) { }
+    explicit Tile(const std::shared_ptr<JobState>& state) : state(state) {
+    }
+
     std::shared_ptr<JobState> state;
     JobID jobID{ JobID_INVALID };
     PKey priority{ PKey_MIN };
-    uint32_t x0{}, y0{}, x1{}, y1{};
+    uint32_t x0{ }, y0{ }, x1{ }, y1{ };
     uint32_t nPass{ 0 };
     uint32_t blockSize{ 1 };
+
+    bool operator==(const Tile& other) const {
+        return x0 == other.x0
+               && x1 == other.x1
+               && y0 == other.y0
+               && y1 == other.y1
+               && jobID == other.jobID;
+    }
+};
+
+/**
+ * @brief Comparison functor helps sort tiles by max priority (lesser pkey value)
+ */
+struct LesserPKeyValue {
+    bool operator()(const Tile& A, const Tile& B) const {
+        return A.priority > B.priority;
+    }
 };
 
 /*
@@ -131,12 +160,110 @@ public:
      */
     JobScheduler() {
     }
-    ~JobScheduler() {
 
+    ~JobScheduler() {
     }
 
+    /**
+     * @brief Submit a job to the queue for rendering. The job is consumed
+     * and no longer valid once submitted.
+     * @param job Job to render.
+     * @return ID of the job which can be used to track it.
+     */
+    JobID submit(Job job) {
+        job.id = getNextJobID();
+        auto state = std::make_shared<JobState>(job);
+        auto jobTiles = getTilesForJobState(state);
+        state->nTilesRemain = static_cast<uint32_t>(jobTiles.size());
+        // queue is loaded with the job's tiles
+        {
+            std::scoped_lock lock{ m_tiles };
+            jobs.emplace(state->job.id, state);
+            for (auto& t: jobTiles) {
+                tiles.push(std::move(t));
+            }
+        }
+        state->status = Status::in_progress;
+        // notify waiting workers
+        // TODO: optimize to notify min(n_pool_size, n_tiles_loaded) times
+        //  => may reduce job to work completion latency and reduce context switching
+        cv_tiles.notify_all();
+        return state->job.id;
+    }
+    /**
+     * @brief Cancel a job with the given ID
+     */
+    void cancel(JobID id) {
+        std::scoped_lock lock{ m_tiles };
+        if (auto it = jobs.find(id); it != jobs.end()) {
+            it->second->status = Status::cancelled;
+        }
+    }
+    /**
+     * @brief Get the next (highest priority) tile in the render queue to work on
+     */
+    std::optional<Tile> getNextTile() {
+        std::unique_lock lock{ m_tiles };
+        cv_tiles.wait(lock, [&] { return !tiles.empty() || inShutdown; });
+        if (inShutdown) {
+            RENDER_DEBUG("shutdown signal received");
+            return std::nullopt;
+        }
+        // discard any tiles for inactive or cancelled jobs
+        while (!tiles.empty()) {
+            auto t = std::move(const_cast<Tile&>(tiles.top()));
+            tiles.pop();
+            auto it = jobs.find(t.jobID);
+            if (it == jobs.end()
+                || it->second->status.load(std::memory_order_relaxed) == Status::cancelled) {
+                // decrement remaining, finalize job at end
+                if (t.state != nullptr && t.state->nTilesRemain.fetch_sub(1) <= 1) {
+                    RENDER_DEBUG("finalizing job ID {}, nRemain={}", t.jobID, t.state->nTilesRemain.load());
+                    finalizeAndEndJob(t.state);
+                }
+                continue;
+            }
+            return t;
+        }
+        return std::nullopt;
+    }
+    /**
+     * @brief Mark a given tile completed
+     */
+    void setTileComplete(const Tile& t) {
+        auto state = t.state;
+        if (state == nullptr)
+            return;
+        if (state->nTilesRemain.fetch_sub(1) <= 1) {
+            finalizeAndEndJob(state);
+        }
+    }
+    /**
+     * @brief Request all threads waiting on tiles to shutdown
+     */
+    void shutdown() {
+        {
+            std::scoped_lock lock{ m_tiles };
+            inShutdown = true;
+        }
+        cv_tiles.notify_all();
+    }
+    /**
+     * @brief Get the state (if found) for a given job ID
+     */
+    std::shared_ptr<JobState> getJobState(JobID id) {
+        std::scoped_lock lock{ m_tiles };
+        if (auto it = jobs.find(id); it != jobs.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
 
-    PRIVATE_IN_PRODUCTION
+PRIVATE_IN_PRODUCTION
+    /**
+     * @brief Maximum render priority tile queue, sorted by PKey value
+     */
+    using TileQueue = std::priority_queue<Tile, std::vector<Tile>, LesserPKeyValue>;
     /**
      * @brief Make a 64bit scheduler priority key for a given tile render configuration
      * @details Priority is determined by JobType, progressive pass number, and tile distance to
@@ -150,13 +277,13 @@ public:
      * @return priority ranked key for tile
      */
     static PKey getPriorityKeyForTile(JobType type, uint32_t nPass, uint32_t tile_cx, uint32_t tile_cy,
-                               uint32_t width, uint32_t height) {
+                                      uint32_t width, uint32_t height) {
         ASSERT(type != JobType::invalid, "invalid job type for tile priority");
         const auto p_type = type_to_priority(type) << 56;
         const auto p_pass = static_cast<uint64_t>(nPass & 0xFF) << 48;
         // fast manhattan distance from centre of image
-        const int64_t cx = width/2;
-        const int64_t cy = height/2;
+        const int64_t cx = width / 2;
+        const int64_t cy = height / 2;
         const auto dist = static_cast<uint64_t>(std::abs(static_cast<int64_t>(tile_cx) - cx)
                                                 + std::abs(static_cast<int64_t>(tile_cy) - cy));
         // normalise to image size and 16bit scale
@@ -170,17 +297,17 @@ public:
      * @brief Break up a Job into a sequence of prioritized RenderTiles.
      */
     static std::vector<Tile> getTilesForJobState(const std::shared_ptr<JobState>& state,
-                                                 const uint32_t tileSize=32) {
+                                                 const uint32_t tileSize = 32) {
         const auto& job = state->job;
         ASSERT(job.type != JobType::invalid, "job type must be specified before getting tiles");
         const auto W = job.width, H = job.height;
         std::vector<Tile> tiles;
         // one or more sets of tiles are created -- one for each progressive pass
-        for (size_t nPass{}; nPass < job.passes.size(); ++nPass) {
+        for (size_t nPass{ }; nPass < job.passes.size(); ++nPass) {
             const auto blockSize = std::max(1u, job.passes.at(nPass));
             // tiles for a single pass
-            for (uint32_t y{}; y < H; y += tileSize) {
-                for (uint32_t x{}; x < W; x += tileSize) {
+            for (uint32_t y{ }; y < H; y += tileSize) {
+                for (uint32_t x{ }; x < W; x += tileSize) {
                     Tile t{ state };
                     t.jobID = state->job.id;
                     t.nPass = nPass;
@@ -201,21 +328,77 @@ public:
         }
         return tiles;
     }
-};
 
+    void finalizeAndEndJob(const std::shared_ptr<JobState>& state) {
+        // TODO: any eg: file commit to disk or other post-render action
+        // eg: if (state->output_type == RenderToDisk) => commit file to disk
+        // mark finished and remove from register
+        std::scoped_lock lock{ m_tiles };
+        jobs.erase(state->job.id);
+    }
+
+    /**
+     * @brief Get the next Job number in the sequence
+     */
+    JobID getNextJobID() {
+        std::scoped_lock{ m_jobID };
+        return ++jobID;
+    }
+
+PRIVATE_IN_PRODUCTION
+    TileQueue tiles;
+    std::unordered_map<JobID, std::shared_ptr<JobState>> jobs;
+    std::mutex m_tiles;
+    std::condition_variable cv_tiles; // signal for tiles queue status
+    bool inShutdown{ false };
+    JobID jobID{ JobID_INVALID };
+    mutable std::mutex m_jobID;
+    Mode mode{ Mode::live_gui };
+};
 
 
 class Worker {
 public:
     /**
-     * @brief Single thread of rendering work, belonging to a RenderPool. Carries out rendering
-     * RenderTiles assigned to it.
+     * @brief Single thread of rendering work, belonging to a WorkerPool. Carries out rendering
+     * Tiles assigned to it.
      */
-    Worker() {}
+    Worker(uint32_t id, JobScheduler& scheduler) : id(id), scheduler(scheduler) {
+    }
 
-private:
+    ~Worker() {
+        stop();
+    }
+
+    void start() {
+        if (isRunning.exchange(true))
+            return;
+        thread = std::make_unique<std::thread>([this]() { run(); });
+        RENDER_DEBUG("<{}> render worker started", id);
+    }
+
+    void stop() {
+        if (!isRunning.exchange(false))
+            return;
+        if (thread != nullptr && thread->joinable())
+            thread->join();
+        RENDER_DEBUG("<{}> render worker stopped", id);
+    }
+
+    PRIVATE_IN_PRODUCTION
+    void run() {
+        RENDER_DEBUG("<{}> render worker running", id);
+        while (isRunning.load(std::memory_order_relaxed)) {
+        }
+    }
+
+    uint32_t id;
+    JobScheduler& scheduler;
     std::shared_ptr<Tile> tile{ nullptr };
+    std::unique_ptr<std::thread> thread{ nullptr };
+    std::atomic<bool> isRunning{ false };
 };
+
 
 class RenderEngine {
 public:
@@ -228,13 +411,12 @@ public:
         Log::init();
         RENDER_TRACE("created rendering engine");
     }
+
     ~RenderEngine() {
         RENDER_TRACE("rendering engine destroyed");
     }
 
-PRIVATE_IN_PRODUCTION
-
+    PRIVATE_IN_PRODUCTION
     DELETE_COPY_AND_MOVE(RenderEngine)
-    };
-
+};
 }
