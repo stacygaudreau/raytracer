@@ -84,5 +84,5 @@ TEST_F(CanvasToPPM, PPMFileIsWritten)
 {
     // writing to PPM file is a success
     auto c = Canvas(5, 3);
-    c.writePPMToFile();
+    c.writePPMToFile("canvas_out.ppm");
 }

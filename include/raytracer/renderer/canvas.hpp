@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -18,24 +19,24 @@ class Canvas
      * @param width
      * @param height
      */
-    Canvas(size_t width, size_t height);
-    size_t getWidth();
-    size_t getHeight();
+    Canvas(uint32_t width, uint32_t height);
+    uint32_t getWidth();
+    uint32_t getHeight();
     bool isBlank();
-    void writePixel(size_t x, size_t y, Colour colour);
+    void writePixel(uint32_t x, uint32_t y, Colour colour);
     void setAllPixelsTo(Colour colour);
-    Colour pixelAt(size_t x, size_t y);
+    Colour pixelAt(uint32_t x, uint32_t y);
     /// @brief Generates a PPM-compatible header string for this canvas's pixel matrix.
     std::string generatePPMHeader() const;
     /// @brief Generate a Portable PixMap data string for the entire pixel matrix in this Canvas().
     std::string toPPM() const;
     /// @brief Generates a row of PPM data for a given y from the pixel matrix.
-    std::string generatePPMDataRow(size_t y) const;
+    std::string generatePPMDataRow(uint32_t y) const;
     /// @brief Writes to file a Portable PixMap image
-    bool writePPMToFile() const;
+    bool writePPMToFile(const std::string& file) const;
 
   private:
-    size_t width, height;
+    uint32_t width, height;
     Matrix2D<Colour> pixels;
 };
 }

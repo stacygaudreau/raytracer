@@ -65,6 +65,8 @@ TEST_F(RenderJobTests, ConstructedWithProperties) {
     EXPECT_EQ(job->passes.at(0), 1);
     EXPECT_EQ(job->width, camera.getHSize());
     EXPECT_EQ(job->height, camera.getVSize());
+    EXPECT_EQ(job->target.buffer.getWidth(), camera.getHSize());
+    EXPECT_EQ(job->target.buffer.getHeight(), camera.getVSize());
 }
 
 
@@ -486,32 +488,44 @@ TEST_F(RenderJobSchedulerTests, JobIsCancelled) {
 }
 
 /*
+ *  RenderImageTarget
+ */
+class ImageTargetTests: public RenderJobSchedulerTests {
+    void SetUp() override {
+        RenderJobSchedulerTests::SetUp();
+    }
+};
+
+/*
  *  RenderWorker
  */
-class RenderWorkerTests: public RenderEngineTests {
+class RenderWorkerTests: public RenderJobSchedulerTests {
 protected:
-    JobScheduler scheduler{ };
     std::unique_ptr<Worker> worker{ nullptr };
     static constexpr uint32_t ID{ 2 };
+    Job job{ cam, world, JobType::offline };
 
     void SetUp() override {
-        RenderEngineTests::SetUp();
+        RenderJobSchedulerTests::SetUp();
+        worker = std::make_unique<Worker>(ID, *sched);
     }
 };
 
 TEST_F(RenderWorkerTests, ConstructedWithDefaults) {
-    auto worker = std::make_unique<Worker>(ID, scheduler);
-    EXPECT_NE(worker, nullptr);
+    ASSERT_NE(worker, nullptr);
     EXPECT_EQ(worker->id, ID);
-    EXPECT_EQ(worker->tile, nullptr);
     EXPECT_EQ(worker->thread, nullptr);
     EXPECT_EQ(worker->isRunning.load(), false);
 }
 
 TEST_F(RenderWorkerTests, ThreadStartsAndStops) {
-    auto worker = std::make_unique<Worker>(ID, scheduler);
+    ASSERT_NE(worker, nullptr);
     EXPECT_EQ(worker->thread, nullptr);
     EXPECT_EQ(worker->isRunning.load(), false);
+    auto th = std::jthread{[&]() {
+        std::this_thread::sleep_for(100ms);
+        sched->shutdown();
+    }};
     worker->start();
     std::this_thread::sleep_for(20ms);
     EXPECT_NE(worker->thread, nullptr);
@@ -523,13 +537,39 @@ TEST_F(RenderWorkerTests, ThreadStartsAndStops) {
     EXPECT_FALSE(worker->thread->joinable());
 }
 
-TEST_F(RenderWorkerTests, LoadsTilesFromScheduler) {
-    auto worker = std::make_unique<Worker>(ID, scheduler);
+TEST_F(RenderWorkerTests, ConsumesTileFromScheduler) {
     // Tiles should automatically be loaded into the worker
-    //  from the scheduer during .run()
-    EXPECT_EQ(worker->tile, nullptr);
+    //  from the scheduler during .run(), and marked
+    //  completed after
+    ASSERT_NE(worker, nullptr);
+    auto id = sched->submit(job);
+    auto s = sched->getJobState(id);
+    auto n_init = s->nTilesRemain.load();
+    EXPECT_EQ(n_init, 64);
+    auto th = std::jthread{[&]() {
+        std::this_thread::sleep_for(50ms);
+        sched->shutdown();
+    }};
     worker->start();
-    std::this_thread::sleep_for(20ms);
-    EXPECT_NE(worker->tile, nullptr);
+    std::this_thread::sleep_for(10ms);
+    auto n_final = s->nTilesRemain.load();
+    EXPECT_LT(n_final, n_init);
+}
+
+TEST_F(RenderWorkerTests, RendersToFrameBuffer) {
+    // a single worker renders tile data to a framebuffer (Canvas)
+    ASSERT_NE(worker, nullptr);
+    // make it a tiny job
+    cam.setHSize(64); cam.setVSize(64);
+    auto job = Job{ cam, world, JobType::offline };
+    auto id = sched->submit(job);
+    auto s = sched->getJobState(id);
+    auto n_init = s->nTilesRemain.load();
+    EXPECT_EQ(n_init, 4);
+    // we're not validating render data here since that's done elsewhere;
+    //  just verifying that pixels have been written and state has changed
+    EXPECT_TRUE(s->job.target.buffer.isBlank());
+    // start rendering
+    EXPECT_TRUE(false);
 }
 

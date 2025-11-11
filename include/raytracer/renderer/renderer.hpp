@@ -60,6 +60,16 @@ constexpr auto JobID_INVALID = std::numeric_limits<JobID>::max();
 using PKey = uint64_t;
 constexpr auto PKey_MIN = std::numeric_limits<uint64_t>::max();
 
+/**
+ * @brief Target image output for rendering a job to
+ * @details Contains details for where and how to render the image
+ */
+struct ImageTarget {
+    ImageTarget(uint32_t width, uint32_t height) : buffer(width, height) { }
+    Canvas buffer;  // output in-memory image buffer
+    std::string path{ "image_target.ppm" }; // target image path when rendering to disk
+};
+
 
 /**
  * @brief Describes a single rendering task request in the render queue.
@@ -70,7 +80,9 @@ struct Job {
                                                       world(world),
                                                       type(type),
                                                       width(camera.getHSize()),
-                                                      height(camera.getVSize()) {
+                                                      height(camera.getVSize()),
+                                                      target(camera.getHSize(),
+                                                          camera.getVSize()) {
     }
 
     bool operator==(const Job& other) const {
@@ -81,6 +93,7 @@ struct Job {
     World& world;
     JobType type;
     uint32_t width{ }, height{ };
+    ImageTarget target;
     // progressive refinement pass block sizes in (NxN) pixels
     // eg: { 32, 16, 8, 1 } gives you 4 passes with 32px, 16px 8px and 1px resolutions
     std::vector<uint32_t> passes{ 1 };
@@ -360,7 +373,7 @@ public:
         if (isRunning.exchange(true))
             return;
         thread = std::make_unique<std::thread>([this]() { run(); });
-        RENDER_DEBUG("<{}> render worker started", id);
+        RENDER_DEBUG("<{}> worker started", id);
     }
 
     void stop() {
@@ -368,21 +381,32 @@ public:
             return;
         if (thread != nullptr && thread->joinable())
             thread->join();
-        RENDER_DEBUG("<{}> render worker stopped", id);
+        RENDER_DEBUG("<{}> worker stopped", id);
     }
 
-    PRIVATE_IN_PRODUCTION
+PRIVATE_IN_PRODUCTION
     void run() {
-        RENDER_DEBUG("<{}> render worker running", id);
+        RENDER_DEBUG("<{}> worker running", id);
         while (isRunning.load(std::memory_order_relaxed)) {
+            auto t = scheduler.getNextTile();
+            if (!t) {
+                RENDER_DEBUG("<{}> worker shutdown signal received", id);
+                break;
+            }
+            if (t->state->isCancelled.load(std::memory_order_relaxed)) {
+                scheduler.setTileComplete(*t);
+                continue;
+            }
+            // todo: RENDER TILE
+            scheduler.setTileComplete(*t);
         }
     }
 
     uint32_t id;
     JobScheduler& scheduler;
-    std::shared_ptr<Tile> tile{ nullptr };
     std::unique_ptr<std::thread> thread{ nullptr };
     std::atomic<bool> isRunning{ false };
+    // todo: render output buffer target
 };
 
 

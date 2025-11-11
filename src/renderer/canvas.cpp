@@ -4,28 +4,28 @@
 namespace rt
 {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-Canvas::Canvas(size_t width, size_t height) : width(width), height(height), pixels(width, height) {}
+Canvas::Canvas(uint32_t width, uint32_t height) : width(width), height(height), pixels(width, height) {}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-size_t Canvas::getWidth()
+uint32_t Canvas::getWidth()
 {
     return width;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-size_t Canvas::getHeight()
+uint32_t Canvas::getHeight()
 {
     return height;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-void Canvas::writePixel(size_t x, size_t y, Colour colour)
+void Canvas::writePixel(uint32_t x, uint32_t y, Colour colour)
 {
     if (x <= pixels.getWidth() - 1 && y <= pixels.getHeight() - 1) pixels.set(x, y, colour);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-Colour Canvas::pixelAt(size_t x, size_t y)
+Colour Canvas::pixelAt(uint32_t x, uint32_t y)
 {
     return pixels.get(x, y);
 }
@@ -49,17 +49,17 @@ std::string Canvas::generatePPMHeader() const
 std::string Canvas::toPPM() const
 {
     std::string ppm{};
-    for (size_t y{}; y < pixels.getHeight(); y++) ppm += generatePPMDataRow(y);
+    for (uint32_t y{}; y < pixels.getHeight(); y++) ppm += generatePPMDataRow(y);
     return ppm;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-std::string Canvas::generatePPMDataRow(size_t y) const
+std::string Canvas::generatePPMDataRow(uint32_t y) const
 {
-    constexpr size_t CHAR_LIMIT{ 70 };  // PPM image format specification for length of lines
+    constexpr uint32_t CHAR_LIMIT{ 70 };  // PPM image format specification for length of lines
     std::string rowData{};
-    size_t nChars{};
-    for (size_t x{}; x < pixels.getWidth(); x++)
+    uint32_t nChars{};
+    for (uint32_t x{}; x < pixels.getWidth(); x++)
     {
         auto const pixel = pixels.get(x, y);
         std::vector<std::string> rgb;
@@ -82,9 +82,9 @@ std::string Canvas::generatePPMDataRow(size_t y) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-bool Canvas::writePPMToFile() const
+bool Canvas::writePPMToFile(const std::string& file) const
 {
-    std::ofstream ppmFile("canvas_out.ppm");
+    std::ofstream ppmFile(file);
     if (!ppmFile.is_open()) {
         return false;
     }
