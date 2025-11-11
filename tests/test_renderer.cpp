@@ -86,7 +86,9 @@ TEST_F(RenderJobStateTests, ConstructedWithProperties) {
     EXPECT_NE(state, nullptr);
     EXPECT_EQ(state->job.id, id);
     EXPECT_EQ(state->nTilesRemain.load(), 0);
-    EXPECT_EQ(state->status.load(), Status::invalid);
+    EXPECT_FALSE(state->isStarted.load());
+    EXPECT_FALSE(state->isFinalized.load());
+    EXPECT_FALSE(state->isCancelled.load());
 }
 
 
@@ -350,8 +352,8 @@ TEST_F(RenderJobSchedulerTests, JobIsSubmitted) {
         state = it->second;
     }
     ASSERT_NE(state, nullptr);
-    EXPECT_EQ(state->nTilesRemain, ts_req.size());
-    EXPECT_EQ(state->status.load(), Status::in_progress);
+    EXPECT_EQ(state->nTilesRemain.load(), ts_req.size());
+    EXPECT_TRUE(state->isStarted.load());
 }
 
 TEST_F(RenderJobSchedulerTests, IgnoreOfflineJobsInLiveGUIMode) {
@@ -464,19 +466,23 @@ TEST_F(RenderJobSchedulerTests, JobIsCancelled) {
     // grab and complete few tiles
     for (int i{ }; i < 3; ++i) {
         auto t = sched->getNextTile();
-        sched->setTileComplete(t.value());
+        auto th = std::jthread{[&]() {
+            sched->setTileComplete(t.value());
+        }};
     }
     // cancel job
     sched->cancel(id);
-    // no more tiles received
-    auto t = sched->getNextTile();
-    EXPECT_FALSE(t);
     // the job state reflects being cancelled
     auto state = sched->getJobState(id);
     ASSERT_NE(state, nullptr);
-    EXPECT_EQ(state->nTilesRemain.load(), 0);
-    EXPECT_EQ(state->status.load(std::memory_order_relaxed),
-              Status::cancelled);
+    EXPECT_EQ(state->nTilesRemain.load(), 61);
+    EXPECT_TRUE(state->isCancelled.load(std::memory_order_relaxed));
+    // no more tiles received
+    auto t = sched->getNextTile();
+    EXPECT_FALSE(t);
+    // the job has been removed from the register
+    auto s = sched->getJobState(id);
+    EXPECT_EQ(s, nullptr);
 }
 
 /*

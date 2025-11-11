@@ -49,18 +49,6 @@ enum class Mode : uint8_t {
     invalid = std::numeric_limits<uint8_t>::max()
 };
 
-/**
- * @brief Status of a rendering job
- */
-enum class Status : uint8_t {
-    waiting = 0,
-    in_progress = 1,
-    paused = 2,
-    cancelled = 3,
-    complete = 4,
-    invalid = std::numeric_limits<uint8_t>::max()
-};
-
 /** @brief Numerical identifier for render job */
 using JobID = uint64_t;
 constexpr auto JobID_INVALID = std::numeric_limits<JobID>::max();
@@ -113,7 +101,9 @@ struct JobState {
 
     Job job;
     std::atomic<uint32_t> nTilesRemain{ };
-    std::atomic<Status> status{ Status::invalid };
+    std::atomic<bool> isStarted{ false };   // flagged when rendering has begun
+    std::atomic<bool> isFinalized{ false }; // true when the job is ending (whether 100% done or not)
+    std::atomic<bool> isCancelled{ false }; // flag to stop queueing job work for render
 };
 
 
@@ -183,7 +173,7 @@ public:
                 tiles.push(std::move(t));
             }
         }
-        state->status = Status::in_progress;
+        state->isStarted = true;
         // notify waiting workers
         // TODO: optimize to notify min(n_pool_size, n_tiles_loaded) times
         //  => may reduce job to work completion latency and reduce context switching
@@ -196,7 +186,7 @@ public:
     void cancel(JobID id) {
         std::scoped_lock lock{ m_tiles };
         if (auto it = jobs.find(id); it != jobs.end()) {
-            it->second->status = Status::cancelled;
+            it->second->isCancelled = true;
         }
     }
     /**
@@ -215,11 +205,12 @@ public:
             tiles.pop();
             auto it = jobs.find(t.jobID);
             if (it == jobs.end()
-                || it->second->status.load(std::memory_order_relaxed) == Status::cancelled) {
+                || it->second->isCancelled.load(std::memory_order_relaxed)) {
                 // decrement remaining, finalize job at end
                 if (t.state != nullptr && t.state->nTilesRemain.fetch_sub(1) <= 1) {
-                    RENDER_DEBUG("finalizing job ID {}, nRemain={}", t.jobID, t.state->nTilesRemain.load());
-                    finalizeAndEndJob(t.state);
+                    RENDER_DEBUG("finalizing job ID {}", t.jobID);
+                    t.state->isFinalized = true;
+                    jobs.erase(t.jobID);
                 }
                 continue;
             }
@@ -228,14 +219,17 @@ public:
         return std::nullopt;
     }
     /**
-     * @brief Mark a given tile completed
+     * @brief Mark a given tile completed.
+     * @details Called by Workers to set a tile complete. This will deadlock if you
+     * call it from the same thread as getNextTile() when the queue is empty.
      */
     void setTileComplete(const Tile& t) {
         auto state = t.state;
         if (state == nullptr)
             return;
         if (state->nTilesRemain.fetch_sub(1) <= 1) {
-            finalizeAndEndJob(state);
+            t.state->isFinalized = true;
+            jobs.erase(t.jobID);
         }
     }
     /**
@@ -327,14 +321,6 @@ PRIVATE_IN_PRODUCTION
             }
         }
         return tiles;
-    }
-
-    void finalizeAndEndJob(const std::shared_ptr<JobState>& state) {
-        // TODO: any eg: file commit to disk or other post-render action
-        // eg: if (state->output_type == RenderToDisk) => commit file to disk
-        // mark finished and remove from register
-        std::scoped_lock lock{ m_tiles };
-        jobs.erase(state->job.id);
     }
 
     /**
