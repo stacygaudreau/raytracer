@@ -31,8 +31,8 @@ add_library(raytracer
         math/tuples.cpp
         math/matrix.cpp
         math/matrix_2d.cpp
-        utils/obj_parser.cpp
-        utils/utils.cpp
+        common/obj_parser.cpp
+        common/utils.cpp
         logging/logging.cpp
 )
 add_library(raytracer::raytracer ALIAS raytracer)

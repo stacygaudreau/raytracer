@@ -13,14 +13,14 @@
 
 #include <queue>
 
-#include "raytracer/utils/macros.hpp"
+#include "raytracer/common/macros.hpp"
 #include "raytracer/renderer/canvas.hpp"
 #include "raytracer/environment/camera.hpp"
 #include "raytracer/environment/world.hpp"
 #include "raytracer/renderer/colour.hpp"
 #include "raytracer/renderer/job_scheduler.hpp"
 #include "raytracer/logging/logging.hpp"
-#include "raytracer/types.hpp"
+#include "raytracer/common/types.hpp"
 #include <vector>
 #include <cmath>
 #include <condition_variable>

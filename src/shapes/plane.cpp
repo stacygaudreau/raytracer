@@ -1,5 +1,5 @@
 #include "raytracer/shapes/plane.hpp"
-#include "raytracer/utils/utils.hpp"
+#include "raytracer/common/utils.hpp"
 #include <cmath>
 
 

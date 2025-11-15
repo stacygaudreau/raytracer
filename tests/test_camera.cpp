@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "raytracer/environment/camera.hpp"
 #include "raytracer/math/matrix.hpp"
-#include "raytracer/utils/utils.hpp"
+#include "raytracer/common/utils.hpp"
 #include "raytracer/shapes/sphere.hpp"
 
 using namespace rt;

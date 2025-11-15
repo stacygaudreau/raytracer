@@ -3,7 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include <string>
-#include "raytracer/utils/utils.hpp"
+#include "raytracer/common/utils.hpp"
 
 namespace rt
 {

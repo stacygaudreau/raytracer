@@ -1,5 +1,5 @@
-#include "raytracer/utils/obj_parser.hpp"
-#include "raytracer/utils/utils.hpp"
+#include "raytracer/common/obj_parser.hpp"
+#include "raytracer/common/utils.hpp"
 #include "raytracer/logging/logging.hpp"
 
 #include <iostream>

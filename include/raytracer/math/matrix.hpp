@@ -15,7 +15,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "raytracer/utils/utils.hpp"
+#include "raytracer/common/utils.hpp"
 #include "raytracer/math/tuples.hpp"
 
 namespace rt

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "raytracer/utils/utils.hpp"
+#include "raytracer/common/utils.hpp"
 #include <ostream>
 
 namespace rt

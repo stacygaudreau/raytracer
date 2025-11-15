@@ -3,7 +3,7 @@
 #include "raytracer/shapes/cone.hpp"
 #include "raytracer/renderer/ray.hpp"
 #include "raytracer/renderer/intersection.hpp"
-#include "raytracer/utils/utils.hpp"
+#include "raytracer/common/utils.hpp"
 
 using namespace rt;
 

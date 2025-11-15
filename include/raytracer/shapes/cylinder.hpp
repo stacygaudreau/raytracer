@@ -8,7 +8,7 @@
 #pragma once
 
 #include "raytracer/shapes/shape.hpp"
-#include "raytracer/utils/utils.hpp"
+#include "raytracer/common/utils.hpp"
 
 namespace rt
 {

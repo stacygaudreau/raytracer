@@ -17,7 +17,7 @@
 
 #include "raytracer/logging/logging.hpp"
 #include "raytracer/renderer/render_common.hpp"
-#include "raytracer/utils/macros.hpp"
+#include "raytracer/common/macros.hpp"
 #include "raytracer/third_party/rigtorp/SPSCQueue.h"
 
 

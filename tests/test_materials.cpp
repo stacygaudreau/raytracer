@@ -1,7 +1,7 @@
 #include "raytracer/materials/material.hpp"
 #include "raytracer/renderer/colour.hpp"
 #include "raytracer/environment/lighting.hpp"
-#include "raytracer/utils/utils.hpp"
+#include "raytracer/common/utils.hpp"
 #include "raytracer/shapes/sphere.hpp"
 #include "gtest/gtest.h"
 

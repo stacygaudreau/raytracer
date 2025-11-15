@@ -10,7 +10,7 @@
 #include "raytracer/third_party/noise/FastNoiseLite.h"
 #include "raytracer/math/tuples.hpp"
 #include "raytracer/math/matrix.hpp"
-#include "raytracer/utils/utils.hpp"
+#include "raytracer/common/utils.hpp"
 
 namespace rt::Texture
 {
