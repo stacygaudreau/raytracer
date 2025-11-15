@@ -4,6 +4,8 @@
 #include "raytracer/renderer/canvas.hpp"
 #include "raytracer/shapes/sphere.hpp"
 #include "raytracer/logging/logging.hpp"
+#include "raytracer/renderer/job_scheduler.hpp"
+#include "raytracer/renderer/job_finalizer.hpp"
 #include <chrono>
 
 using namespace rt;
@@ -89,8 +91,9 @@ TEST_F(RenderJobStateTests, ConstructedWithProperties) {
     EXPECT_EQ(state->job.id, id);
     EXPECT_EQ(state->nTilesRemain.load(), 0);
     EXPECT_FALSE(state->isStarted.load());
-    EXPECT_FALSE(state->isFinalized.load());
+    EXPECT_FALSE(state->isCompleted.load());
     EXPECT_FALSE(state->isCancelled.load());
+    EXPECT_EQ(state->onJobEnd, nullptr);
 }
 
 
@@ -112,8 +115,9 @@ protected:
     }
 };
 
-TEST_F(RenderJobSchedulerTests, ConstructedWithProperties) {
-    EXPECT_NE(sched, nullptr);
+TEST_F(RenderJobSchedulerTests, DefaultProperties) {
+    ASSERT_NE(sched, nullptr);
+    EXPECT_EQ(sched->finalizer, nullptr);
 }
 
 TEST_F(RenderJobSchedulerTests, GetEvenTilesForSinglePassSquareViewportJob) {
@@ -328,6 +332,7 @@ TEST_F(RenderJobSchedulerTests, JobIsSubmitted) {
     cam.setVSize(64);
     sched->jobID = 9000;
     Job job{ cam, world, JobType::offline };
+    auto t0 = std::chrono::steady_clock::now();
     auto id = sched->submit(job);
     // the job was given an appropriate ID
     EXPECT_EQ(id, 9001);
@@ -354,13 +359,16 @@ TEST_F(RenderJobSchedulerTests, JobIsSubmitted) {
         state = it->second;
     }
     ASSERT_NE(state, nullptr);
+    EXPECT_EQ(state->nTiles, ts_req.size());
     EXPECT_EQ(state->nTilesRemain.load(), ts_req.size());
+    EXPECT_GT(state->tSubmit, t0);
     EXPECT_TRUE(state->isStarted.load());
 }
 
 TEST_F(RenderJobSchedulerTests, IgnoreOfflineJobsInLiveGUIMode) {
     // submitting an offline type render job is ignored when
     //  the scheduler is in Live GUI rendering mode
+    EXPECT_TRUE(false);
 }
 
 TEST_F(RenderJobSchedulerTests, GetNoTileWhenEmpty) {
@@ -416,13 +424,15 @@ TEST_F(RenderJobSchedulerTests, GetJobState) {
     EXPECT_EQ(sched->getJobState(9001), nullptr);
 }
 
-TEST_F(RenderJobSchedulerTests, SetTileCompleteDecrementsRemaining) {
-    // calling .setTileComplete() marks the tile completed
+TEST_F(RenderJobSchedulerTests, SetTileUpdatesCounts) {
+    // calling .setTileComplete() increments and decrements the
+    //  proper counters on JobState
     cam.setHSize(64);
     cam.setVSize(64);
     const auto id = sched->submit({
         cam, world, JobType::offline
     });
+    auto t0 = std::chrono::steady_clock::now();
     auto s = sched->getJobState(id);
     auto t = sched->getNextTile();
     ASSERT_NE(s, nullptr);
@@ -430,10 +440,15 @@ TEST_F(RenderJobSchedulerTests, SetTileCompleteDecrementsRemaining) {
     // completing the tile decrements remaining
     sched->setTileComplete(t.value());
     EXPECT_EQ(s->nTilesRemain.load(), 3);
+    // it also increments the actual rendered count
+    EXPECT_EQ(s->nTilesComplete.load(), 1);
+    // the time of last tile render is updated
+    EXPECT_GT(s->tLastTile, t0);
 }
 
 TEST_F(RenderJobSchedulerTests, SetTileCompleteFinishesJob) {
     // completing the final tile in a job finishes it
+    //  (nb: no Finalizer connected, so we can verify the state in the local job register)
     cam.setHSize(64);
     cam.setVSize(64);
     const auto id = sched->submit({
@@ -441,7 +456,10 @@ TEST_F(RenderJobSchedulerTests, SetTileCompleteFinishesJob) {
     });
     auto s = sched->getJobState(id);
     ASSERT_NE(s, nullptr);
+    EXPECT_FALSE(s->isCompleted.load());
     auto t = sched->getNextTile();
+    auto nTiles = s->nTiles;
+    auto t0 = std::chrono::steady_clock::now();
     sched->setTileComplete(t.value());
     t = sched->getNextTile();
     sched->setTileComplete(t.value());
@@ -451,10 +469,13 @@ TEST_F(RenderJobSchedulerTests, SetTileCompleteFinishesJob) {
     // the final tile completes the job
     t = sched->getNextTile();
     sched->setTileComplete(t.value());
-    EXPECT_EQ(s->nTilesRemain.load(), 0);
-    // completed job no longer present in register
+    // completed job state in register since finalizer not yet connected
     s = sched->getJobState(id);
-    EXPECT_EQ(s, nullptr);
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(s->nTilesRemain.load(), 0);
+    EXPECT_EQ(s->nTilesComplete.load(), nTiles);
+    EXPECT_TRUE(s->isCompleted.load());
+    EXPECT_GT(s->tComplete, t0);
 }
 
 TEST_F(RenderJobSchedulerTests, JobIsCancelled) {
@@ -482,19 +503,207 @@ TEST_F(RenderJobSchedulerTests, JobIsCancelled) {
     // no more tiles received
     auto t = sched->getNextTile();
     EXPECT_FALSE(t);
-    // the job has been removed from the register
+    // no tiles remain and the job is marked completed
     auto s = sched->getJobState(id);
-    EXPECT_EQ(s, nullptr);
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(s->nTilesRemain.load(), 0);
+    EXPECT_TRUE(s->isCompleted.load());
+    // job was not fully rendered
+    EXPECT_NE(s->nTilesComplete.load(), s->nTiles);
 }
 
 /*
  *  RenderImageTarget
  */
 class ImageTargetTests: public RenderJobSchedulerTests {
+protected:
     void SetUp() override {
         RenderJobSchedulerTests::SetUp();
     }
 };
+
+TEST_F(ImageTargetTests, BasicProperties) {
+    auto target = ImageTarget{ cam.getHSize(), cam.getVSize() };
+    EXPECT_EQ(target.buffer.getWidth(), cam.getHSize());
+    EXPECT_EQ(target.buffer.getHeight(), cam.getVSize());
+}
+
+/*
+ *  RenderSchedulerCompleteAndSummary
+ *   - tests Job Summary data structure
+ *   - also job completion and summarization on the Scheduler
+ */
+class RenderSchedulerCompletion: public RenderJobSchedulerTests {
+protected:
+    JobFinalizer finalizer{ };
+    std::shared_ptr<JobState> st{ nullptr };
+    Job job{ cam, world, JobType::offline };
+    JobID id{ JobID_INVALID };
+
+    void SetUp() override {
+        RenderJobSchedulerTests::SetUp();
+        id = sched->submit(job);
+        st = sched->getJobState(id);
+    }
+};
+
+TEST_F(RenderSchedulerCompletion, DefaultProperties) {
+    auto s = JobSummary{ st->job.target };
+    EXPECT_EQ(s.id, JobID_INVALID);
+    EXPECT_EQ(s.type, JobType::invalid);
+    EXPECT_EQ(s.endReason, JobEndReason::invalid);
+}
+
+TEST_F(RenderSchedulerCompletion, MakeJobSummaryFromState) {
+    // the JobScheduler::getJobSummary factory constructs a snapshot
+    //  JobSummary of a JobState
+    auto s = JobScheduler::makeSummary(st);
+    EXPECT_EQ(s.id, st->job.id);
+    EXPECT_EQ(s.type, st->job.type);
+    EXPECT_EQ(s.endReason, JobEndReason::failed);
+    EXPECT_EQ(s.target, st->job.target);
+    EXPECT_EQ(s.nTiles, st->nTiles);
+    EXPECT_EQ(s.nTilesComplete, st->nTilesComplete);
+    EXPECT_EQ(s.nPixelsComplete, st->nPixelsComplete);
+    EXPECT_EQ(s.nPasses, st->job.passes.size());
+    EXPECT_EQ(s.tSubmit, st->tSubmit);
+    EXPECT_EQ(s.tStart, st->tStart);
+    EXPECT_EQ(s.tComplete, st->tComplete);
+    // cancelled state
+    st->isCancelled = true;
+    s = JobScheduler::makeSummary(st);
+    EXPECT_EQ(s.endReason, JobEndReason::cancelled);
+    // completed state takes precendence over cancelled
+    //  in determining end reason
+    st->isCompleted = true;
+    s = JobScheduler::makeSummary(st);
+    EXPECT_EQ(s.endReason, JobEndReason::completed);
+}
+
+/*
+ *  RenderJobFinalizer
+ */
+class RenderJobFinalizerTests: public RenderJobSchedulerTests {
+protected:
+    JobFinalizer finalizer{ };
+    std::shared_ptr<JobState> st{ nullptr };
+    Job job{ cam, world, JobType::offline };
+    JobID id{ JobID_INVALID };
+
+    void SetUp() override {
+        RenderJobSchedulerTests::SetUp();
+        id = sched->submit(job);
+        st = sched->getJobState(id);
+    }
+};
+
+TEST_F(RenderJobFinalizerTests, StartsAndStops) {
+    // instance is created and the worker thread starts/stops
+    EXPECT_FALSE(finalizer.isRunning.load());
+    finalizer.start();
+    std::this_thread::sleep_for(15ms);
+    EXPECT_TRUE(finalizer.isRunning.load());
+    finalizer.stop();
+    std::this_thread::sleep_for(15ms);
+    EXPECT_FALSE(finalizer.isRunning.load());
+}
+
+TEST_F(RenderJobFinalizerTests, BasicEnqueueJob) {
+    // pushing onto the queue works and the ended job appears in the queue to consume
+    auto summary = JobScheduler::makeSummary(st);
+    EXPECT_TRUE(finalizer.queue.empty());
+    finalizer.push({summary, nullptr});
+    EXPECT_FALSE(finalizer.queue.empty());
+    const auto ps_rec = finalizer.queue.front();
+    ASSERT_NE(ps_rec, nullptr);
+    EXPECT_EQ(ps_rec->summary.id, summary.id);
+    EXPECT_EQ(ps_rec->summary.target.path, summary.target.path);
+}
+
+TEST_F(RenderJobFinalizerTests, EnqueueExecutesCallbacks) {
+    // an enqueued job to finalize has its appropriate callbacks executed
+    //  by the queue which is running
+    auto summary = JobScheduler::makeSummary(st);
+    EXPECT_TRUE(finalizer.queue.empty());
+    finalizer.start();
+    bool cbIsExecuted{ false };
+    const auto cb = JobEndedCallback{[&](const auto&){ cbIsExecuted = true; }};
+    finalizer.push({summary, cb});
+    std::this_thread::sleep_for(10ms);
+    finalizer.stop();
+    EXPECT_TRUE(cbIsExecuted);
+}
+
+
+/*
+ * RenderJobFinalizer - integration with other modules
+ */
+class RenderJobFinalizerIntegration: public RenderJobFinalizerTests {
+protected:
+
+    void SetUp() override {
+        RenderJobFinalizerTests::SetUp();
+    }
+};
+
+TEST_F(RenderJobFinalizerIntegration, AttachFinalizerToScheduler) {
+    // the scheduler allows attaching a Finalizer instance
+    EXPECT_EQ(sched->finalizer, nullptr);
+    EXPECT_EQ(finalizer.scheduler, nullptr);
+    sched->attachToFinalizer(finalizer);
+    EXPECT_EQ(sched->finalizer, &finalizer);
+    // the connection is bidirectional
+    EXPECT_NE(finalizer.scheduler, nullptr);
+}
+
+TEST_F(RenderJobFinalizerIntegration, FinalizedToDisk) {
+    // a job is finalized and rendered to disk as a file
+    EXPECT_TRUE(false);
+}
+
+TEST_F(RenderJobFinalizerIntegration, FinalizedToBuffer) {
+    // a job is finalized to an image buffer (only)
+    EXPECT_TRUE(false);
+}
+
+TEST_F(RenderJobFinalizerIntegration, GetSummaryOfFinalizedJob) {
+    // the Finalizer maintains a registry of finalized jobs
+    //  and .getJobSummary() returns the appropriate Summary
+    CORE_TRACE("\nTEST START");
+    EXPECT_EQ(nullptr, finalizer.getSummary(id));
+    auto summary = JobScheduler::makeSummary(st);
+    finalizer.start();
+    finalizer.push({summary, nullptr});
+    std::this_thread::sleep_for(10ms);
+    auto res = finalizer.getSummary(id);
+    ASSERT_NE(res, nullptr);
+    EXPECT_EQ(res->id, summary.id);
+    EXPECT_TRUE(finalizer.queue.empty());
+}
+
+TEST_F(RenderJobFinalizerIntegration, FinalizesFromScheduler) {
+    // the scheduler is connected, and a job is completed on it.
+    //   the job is automatically enqueued to the finalizer, which
+    //   is appropriately finalized
+    sched->attachToFinalizer(finalizer);
+    finalizer.start();
+    // complete the job by marking all tiles complete
+    const auto nTiles = st->nTiles;
+    for (uint32_t n{}; n < nTiles; ++n) {
+        if (const auto t = sched->getNextTile()) {
+            sched->setTileComplete(t.value());
+        }
+    }
+    EXPECT_EQ(st->nTilesComplete, nTiles);
+    // summary is now in the finalizer's registry
+    std::this_thread::sleep_for(10ms);
+    auto summary = finalizer.getSummary(id);
+    EXPECT_NE(summary, nullptr);
+    // the job is removed from the scheduler's register after finalizing
+    auto st_now = sched->getJobState(id);
+    EXPECT_EQ(st_now, nullptr);
+}
+
 
 /*
  *  RenderWorker

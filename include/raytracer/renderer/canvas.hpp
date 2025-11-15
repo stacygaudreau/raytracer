@@ -20,8 +20,8 @@ class Canvas
      * @param height
      */
     Canvas(uint32_t width, uint32_t height);
-    uint32_t getWidth();
-    uint32_t getHeight();
+    uint32_t getWidth() const { return width; }
+    uint32_t getHeight() const {  return height; }
     bool isBlank();
     void writePixel(uint32_t x, uint32_t y, Colour colour);
     void setAllPixelsTo(Colour colour);

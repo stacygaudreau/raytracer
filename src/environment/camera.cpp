@@ -6,7 +6,7 @@ namespace rt
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Camera
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-Camera::Camera(size_t _hSize, size_t _vSize, double fieldOfView)
+Camera::Camera(uint32_t _hSize, uint32_t _vSize, double fieldOfView)
 : _hSize(_hSize),
   _vSize(_vSize),
   hSizeF(static_cast<double>(_hSize)),
@@ -38,7 +38,7 @@ Camera::Camera(size_t _hSize, size_t _vSize, double fieldOfView)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-Ray Camera::getRayForCanvasPixel(size_t pixelX, size_t pixelY)
+Ray Camera::getRayForCanvasPixel(uint32_t pixelX, uint32_t pixelY)
 {
     // offset from edge of canvas to pixel centre
     const double xOff = (static_cast<double>(pixelX) + 0.5) * pixelSize;
@@ -68,11 +68,11 @@ Canvas Camera::render(World world)
     auto t0 = std::chrono::high_resolution_clock::now();
     std::cout << "\nRaytracing of " << _hSize << "x" << _vSize << "px image started. "
               << _hSize * _vSize << " pixels to render...\n";
-    size_t nRowsDone{};
+    uint32_t nRowsDone{};
     Canvas image{ _hSize, _vSize };
-    for (size_t y{}; y < _vSize; ++y)
+    for (uint32_t y{}; y < _vSize; ++y)
     {
-        for (size_t x{}; x < _hSize; ++x)
+        for (uint32_t x{}; x < _hSize; ++x)
         {
             auto ray   = getRayForCanvasPixel(x, y);
             auto pixel = world.traceRayToPixel(ray, World::MAX_RAYS);

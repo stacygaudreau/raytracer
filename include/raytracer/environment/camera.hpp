@@ -26,7 +26,7 @@ class Camera
     /// @param hSize Horizontal size (in px) of the canvas the scene will be rendered to.
     /// @param vSize Vertical size (in px) of the canvas the scene will be rendered to.
     /// @param fieldOfView An angle which describes the field-of-view of the camera, in radians.
-    Camera(size_t hSize, size_t vSize, double fieldOfView);
+    Camera(uint32_t hSize, uint32_t vSize, double fieldOfView);
 
     /// @brief Renders a given World into a Canvas image, according to this Camera's view.
     /// @param world The World() to render this camera view in.
@@ -35,14 +35,14 @@ class Camera
     /// pixel x, y on the camera's canvas.
     /// @param pixelX x coordinate on the camera canvas the ray will pass through.
     /// @param pixelY y coordinate on the camera canvas the ray will pass through.
-    Ray getRayForCanvasPixel(size_t pixelX, size_t pixelY);
+    Ray getRayForCanvasPixel(uint32_t pixelX, uint32_t pixelY);
     /// @brief Set the transform matrix for the camera's position and orientation in worldspace.
     void setTransform(TransformationMatrix newTransform);
 
-    void setVSize(size_t vSize) noexcept { _vSize = vSize; }
-    [[nodiscard]] inline size_t getVSize() const noexcept { return _vSize; }
-    void setHSize(size_t hSize) noexcept { _hSize = hSize; }
-    [[nodiscard]] inline size_t getHSize() const noexcept { return _hSize; }
+    void setVSize(uint32_t vSize) noexcept { _vSize = vSize; }
+    [[nodiscard]] inline uint32_t getVSize() const noexcept { return _vSize; }
+    void setHSize(uint32_t hSize) noexcept { _hSize = hSize; }
+    [[nodiscard]] inline uint32_t getHSize() const noexcept { return _hSize; }
     [[nodiscard]] inline double getPixelSize() const noexcept { return pixelSize; }
     /// @brief Returns true when the camera has a horizontal aspect ratio. False if it is vertical.
     [[nodiscard]] inline bool getAspectIsHorizontal() const { return aspectRatio >= 1.0; }
@@ -50,7 +50,7 @@ class Camera
     [[nodiscard]] inline TransformationMatrix getTransform() const { return transform; }
 
   private:
-    size_t _hSize, _vSize;
+    uint32_t _hSize, _vSize;
     double hSizeF, vSizeF;  // cached double versions of hSize/vSize
     double fieldOfView;
     TransformationMatrix transform;

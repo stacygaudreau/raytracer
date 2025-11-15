@@ -11,6 +11,8 @@ add_library(raytracer
         renderer/intersection.cpp
         renderer/ray.cpp
         renderer/renderer.cpp
+        renderer/job_finalizer.cpp
+        renderer/job_scheduler.cpp
         shapes/cone.cpp
         shapes/csg.cpp
         shapes/cube.cpp
